@@ -40,16 +40,19 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
 
-      - name: Use official Maven repos (remove Aliyun mirrors for CI)
+      - name: Strip Aliyun mirrors (use google()/mavenCentral() directly on CI)
         run: |
-          echo "=== settings.gradle.kts (unchanged, aliyun mirrors kept as fallback) ==="
+          echo "=== original settings.gradle.kts ==="
+          cat settings.gradle.kts
+          sed -i.bak '/maven.aliyun.com/d' settings.gradle.kts
+          rm -f settings.gradle.kts.bak
+          echo "=== patched settings.gradle.kts ==="
           cat settings.gradle.kts
 
       - name: Strip local proxy from gradle.properties (no proxy on CI runner)
         run: |
           echo "=== original gradle.properties ==="
           cat gradle.properties
-          # Remove the four systemProp proxy lines so Gradle does not route through 127.0.0.1:18080
           sed -i.bak -E '/^systemProp\.(http|https)\.(proxyHost|proxyPort|nonProxyHosts)=/d' gradle.properties
           rm -f gradle.properties.bak
           echo "=== patched gradle.properties ==="
