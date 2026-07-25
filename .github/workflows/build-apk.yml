@@ -39,6 +39,14 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
 
+      - name: Use official Maven repos (remove Aliyun mirrors for CI)
+        run: |
+          # Strip Aliyun mirror lines so CI uses google()/mavenCentral()/gradlePluginPortal() directly
+          sed -i.bak '/maven.aliyun.com/d' settings.gradle.kts
+          rm -f settings.gradle.kts.bak
+          echo "=== patched settings.gradle.kts ==="
+          cat settings.gradle.kts
+
       - name: Build debug APK (use installed gradle, bypass wrapper download)
         run: gradle :app:assembleDebug --no-daemon --stacktrace --no-configuration-cache
 
