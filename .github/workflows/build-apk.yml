@@ -10,6 +10,7 @@ on:
 env:
   GRADLE_OPTS: "-Djava.net.preferIPv4Stack=true"
   JAVA_OPTS: "-Djava.net.preferIPv4Stack=true"
+  JAVA_TOOL_OPTIONS: "-Djava.net.preferIPv4Stack=true"
 
 jobs:
   build:
