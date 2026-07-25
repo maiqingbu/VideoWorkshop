@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">视频工坊</string>
+    <string name="video_process_channel_name">视频处理</string>
+    <string name="video_process_channel_desc">视频去重和处理进度通知</string>
+    <string name="video_process_title">正在处理视频…</string>
+</resources>

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths>
+    <external-files-path name="videos" path="videos/" />
+    <external-files-path name="images" path="images/" />
+    <external-files-path name="audio" path="audio/" />
+    <external-files-path name="output" path="output/" />
+    <cache-path name="cache" path="." />
+    <external-cache-path name="external_cache" path="." />
+</paths>
