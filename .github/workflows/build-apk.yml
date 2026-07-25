@@ -48,8 +48,15 @@ jobs:
           echo "=== patched settings.gradle.kts ==="
           cat settings.gradle.kts
 
+      - name: Verify Google Maven accessible
+        run: |
+          echo "=== test AGP 8.7.3 POM ==="
+          curl -sSI --max-time 15 https://dl.google.com/android/maven2/com/android/application/com.android.application.gradle.plugin/8.7.3/com.android.application.gradle.plugin-8.7.3.pom | head -3
+          echo "=== test mavenCentral ==="
+          curl -sSI --max-time 15 https://repo.maven.apache.org/maven2/org/jetbrains/kotlin/kotlin-stdlib/2.0.21/kotlin-stdlib-2.0.21.pom | head -3
+
       - name: Build debug APK (use installed gradle, bypass wrapper download)
-        run: gradle :app:assembleDebug --no-daemon --stacktrace --no-configuration-cache
+        run: gradle :app:assembleDebug --no-daemon --stacktrace --no-configuration-cache --info 2>&1 | tee build.log; tail -200 build.log
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
