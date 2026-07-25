@@ -21,7 +21,11 @@ jobs:
         with:
           distribution: temurin
           java-version: '17'
-          cache: gradle
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: wrapper
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
@@ -33,14 +37,6 @@ jobs:
 
       - name: Build debug APK
         run: ./gradlew :app:assembleDebug --no-daemon --stacktrace
-
-      - name: Locate APK
-        id: apk
-        run: |
-          APK_PATH=$(find app/build/outputs/apk/debug -name "*.apk" | head -1)
-          echo "path=$APK_PATH" >> "$GITHUB_OUTPUT"
-          echo "name=$(basename "$APK_PATH")" >> "$GITHUB_OUTPUT"
-          ls -la "$APK_PATH"
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
