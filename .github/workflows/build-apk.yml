@@ -45,11 +45,18 @@ jobs:
           echo "=== settings.gradle.kts (unchanged, aliyun mirrors kept as fallback) ==="
           cat settings.gradle.kts
 
-      - name: Build debug APK (debug log to capture plugin resolution errors)
+      - name: Strip local proxy from gradle.properties (no proxy on CI runner)
         run: |
-          gradle :app:assembleDebug --no-daemon --stacktrace --no-configuration-cache --debug 2>&1 | tee build.log
-          echo "=== last 300 lines ==="
-          tail -300 build.log
+          echo "=== original gradle.properties ==="
+          cat gradle.properties
+          # Remove the four systemProp proxy lines so Gradle does not route through 127.0.0.1:18080
+          sed -i.bak -E '/^systemProp\.(http|https)\.(proxyHost|proxyPort|nonProxyHosts)=/d' gradle.properties
+          rm -f gradle.properties.bak
+          echo "=== patched gradle.properties ==="
+          cat gradle.properties
+
+      - name: Build debug APK
+        run: gradle :app:assembleDebug --no-daemon --stacktrace --no-configuration-cache
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
