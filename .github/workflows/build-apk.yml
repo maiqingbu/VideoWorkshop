@@ -7,6 +7,10 @@ on:
     branches: [ main, master ]
   workflow_dispatch:
 
+env:
+  GRADLE_OPTS: "-Djava.net.preferIPv4Stack=true"
+  JAVA_OPTS: "-Djava.net.preferIPv4Stack=true"
+
 jobs:
   build:
     name: Build Debug APK
@@ -22,20 +26,10 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      - name: Disable IPv6 (workaround for services.gradle.org ConnectException)
-        run: |
-          sudo sysctl -w net.ipv6.conf.all.disable_ipv6=1
-          sudo sysctl -w net.ipv6.conf.default.disable_ipv6=1
-
-      - name: Verify network connectivity
-        run: |
-          curl -sSI --max-time 10 https://services.gradle.org/distributions/gradle-8.9-bin.zip | head -3 || true
-          curl -sSI --max-time 10 https://dl.google.com/android/repository/repository2-3.xml | head -3 || true
-
-      - name: Setup Gradle
+      - name: Setup Gradle 8.9
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: wrapper
+          gradle-version: '8.9'
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
@@ -45,8 +39,8 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x ./gradlew
 
-      - name: Build debug APK
-        run: ./gradlew :app:assembleDebug --no-daemon --stacktrace
+      - name: Build debug APK (use installed gradle, bypass wrapper download)
+        run: gradle :app:assembleDebug --no-daemon --stacktrace --no-configuration-cache
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
