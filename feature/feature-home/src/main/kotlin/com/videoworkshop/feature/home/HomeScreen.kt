@@ -30,7 +30,8 @@ import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Movie
-import androidx.compose.material.icons.filled.ShoppingBag
+import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -44,6 +45,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -52,29 +54,35 @@ import com.videoworkshop.core.designsystem.theme.BrandNavy
 import com.videoworkshop.core.designsystem.theme.BrandRed
 import com.videoworkshop.core.designsystem.theme.BrandRedDark
 import com.videoworkshop.core.designsystem.theme.NeutralGray
+import com.videoworkshop.core.designsystem.theme.NeutralGrayLight
 import com.videoworkshop.core.designsystem.theme.SemanticInfo
 import com.videoworkshop.domain.model.Draft
+import android.widget.Toast
 
 /**
  * 快捷功能入口类型。
  */
-enum class QuickAction { MATERIAL, GOODS, PUBLISH_RECORDS }
+enum class QuickAction { MATERIAL, PUBLISH_RECORDS }
 
 /**
  * 首页 —— 视频工坊创作中心。
  *
- * 顶部为品牌红渐变标题区，下方为「视频带货 / 图文带货」双卡片入口，
- * 以及最近草稿横向列表与快捷功能网格。整体使用 [LazyColumn] 并支持下拉刷新。
+ * 顶部为品牌红渐变标题区，下方为「视频带货 / 图文带货 / AB 搬运 / 二创工厂」
+ * 四张主入口卡片（二创工厂为灰态「敬请期待」），以及最近草稿横向列表与
+ * 「素材库 / 发布记录」两个快捷入口。整体使用 [LazyColumn] 并支持下拉刷新。
  */
 @Composable
 fun HomeScreen(
     uiState: HomeUiState,
     onVideoMode: () -> Unit,
     onImageMode: () -> Unit,
+    onABTransport: () -> Unit,
     onRefresh: () -> Unit,
     onQuickAction: (QuickAction) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+
     PullToRefreshBox(
         isRefreshing = uiState.isLoading,
         onRefresh = onRefresh,
@@ -88,6 +96,7 @@ fun HomeScreen(
         ) {
             item { HomeHeader(draftCount = uiState.recentDrafts.size) }
 
+            // 4 主入口卡片：2x2 网格
             item {
                 Row(
                     modifier = Modifier
@@ -110,6 +119,36 @@ fun HomeScreen(
                         title = "图文带货",
                         description = "模板 + 文案 + 发布",
                         onClick = onImageMode
+                    )
+                }
+            }
+
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    ModeCard(
+                        modifier = Modifier.weight(1f),
+                        gradient = Brush.linearGradient(listOf(BrandRed, BrandRedDark)),
+                        icon = Icons.Filled.SwapHoriz,
+                        title = "AB 搬运",
+                        description = "音轨替换 / 混合 / 对齐",
+                        onClick = onABTransport
+                    )
+                    ModeCard(
+                        modifier = Modifier.weight(1f),
+                        gradient = Brush.linearGradient(listOf(NeutralGrayLight, NeutralGray)),
+                        icon = Icons.Filled.AutoAwesome,
+                        title = "二创工厂",
+                        description = "敬请期待",
+                        titleColor = Color.White,
+                        descriptionColor = Color.White.copy(alpha = 0.85f),
+                        onClick = {
+                            Toast.makeText(context, "敬请期待", Toast.LENGTH_SHORT).show()
+                        }
                     )
                 }
             }
@@ -149,12 +188,6 @@ fun HomeScreen(
                         icon = Icons.Filled.Collections,
                         label = "素材库",
                         onClick = { onQuickAction(QuickAction.MATERIAL) }
-                    )
-                    QuickItem(
-                        modifier = Modifier.weight(1f),
-                        icon = Icons.Filled.ShoppingBag,
-                        label = "商品库",
-                        onClick = { onQuickAction(QuickAction.GOODS) }
                     )
                     QuickItem(
                         modifier = Modifier.weight(1f),
@@ -280,7 +313,9 @@ private fun ModeCard(
     icon: ImageVector,
     title: String,
     description: String,
-    onClick: () -> Unit
+    onClick: () -> Unit,
+    titleColor: Color = Color.White,
+    descriptionColor: Color = Color.White.copy(alpha = 0.88f)
 ) {
     Box(
         modifier = modifier
@@ -312,14 +347,14 @@ private fun ModeCard(
             Column {
                 Text(
                     text = title,
-                    color = Color.White,
+                    color = titleColor,
                     fontSize = 19.sp,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
                     text = description,
-                    color = Color.White.copy(alpha = 0.88f),
+                    color = descriptionColor,
                     fontSize = 12.sp,
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis
@@ -328,14 +363,14 @@ private fun ModeCard(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = "开始制作",
-                        color = Color.White.copy(alpha = 0.95f),
+                        color = titleColor.copy(alpha = 0.95f),
                         fontSize = 11.sp,
                         fontWeight = FontWeight.Medium
                     )
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
                         contentDescription = null,
-                        tint = Color.White.copy(alpha = 0.95f),
+                        tint = titleColor.copy(alpha = 0.95f),
                         modifier = Modifier.size(16.dp)
                     )
                 }

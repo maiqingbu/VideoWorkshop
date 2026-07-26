@@ -12,6 +12,7 @@ import androidx.room.PrimaryKey
  * @param type       类型：video / image / audio。
  * @param thumbnail  缩略图本地路径（可空）。
  * @param tags       标签集合（经 [com.videoworkshop.core.database.converter.Converters] 转换）。
+ * @param note       备注（用户编辑保存的描述信息）。
  * @param createdAt  入库时间戳。
  */
 @Entity(tableName = "materials")
@@ -23,5 +24,6 @@ data class MaterialEntity(
     val type: String,
     val thumbnail: String? = null,
     val tags: List<String> = emptyList(),
+    val note: String = "",
     val createdAt: Long = System.currentTimeMillis(),
 )

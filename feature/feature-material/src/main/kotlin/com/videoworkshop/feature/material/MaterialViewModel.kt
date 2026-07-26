@@ -21,21 +21,34 @@ import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 /**
- * 素材库 Tab 类型。
+ * 素材库筛选标签。
  *
  * @param label   展示名称
- * @param apiName 对应 [MaterialEntity.type] 的过滤值，null 表示不过滤
+ * @param predicate 列表过滤谓词；null 表示不过滤
  */
-enum class TabType(val label: String, val apiName: String?) {
-    ALL("全部", null),
-    VIDEO("视频", "video"),
-    IMAGE("图片", "image")
+enum class MaterialFilterTag(val label: String) {
+    ALL("全部"),
+    VIDEO("视频"),
+    IMAGE("图片"),
+    PROCESSED("已处理"),
+    UNPROCESSED("未处理");
+
+    /** 判断素材是否匹配当前标签。 */
+    fun matches(material: MaterialEntity): Boolean = when (this) {
+        ALL -> true
+        VIDEO -> material.type.equals("video", ignoreCase = true)
+        IMAGE -> material.type.equals("image", ignoreCase = true)
+        PROCESSED -> material.source.equals("generated", ignoreCase = true) ||
+            material.source.equals("official", ignoreCase = true)
+        UNPROCESSED -> material.source.equals("import", ignoreCase = true)
+    }
 }
+
 
 /**
  * 素材库 ViewModel。
  *
- * 维护当前 Tab、素材列表（按 Tab 过滤）以及导入/删除能力。
+ * 维护筛选标签、素材列表（按标签过滤）以及导入/删除/编辑/多选能力。
  * 导入通过 [importMaterial] 发出一次性事件，由 UI 层拉起系统选择器，
  * 选择结果回传 [saveImportedMaterial] 持久化。
  *
@@ -50,19 +63,25 @@ class MaterialViewModel @Inject constructor(
 
     private val _allMaterials = MutableStateFlow<List<MaterialEntity>>(emptyList())
 
-    private val _selectedTab = MutableStateFlow(TabType.ALL)
-    val selectedTab: StateFlow<TabType> = _selectedTab.asStateFlow()
+    private val _filterTag = MutableStateFlow(MaterialFilterTag.ALL)
+    val filterTag: StateFlow<MaterialFilterTag> = _filterTag.asStateFlow()
 
-    /** 按 [selectedTab] 过滤后的素材列表。 */
+    /** 按 [filterTag] 过滤后的素材列表。 */
     val materials: StateFlow<List<MaterialEntity>> =
-        combine(_allMaterials, _selectedTab) { all, tab ->
-            if (tab.apiName == null) all
-            else all.filter { it.type.equals(tab.apiName, ignoreCase = true) }
+        combine(_allMaterials, _filterTag) { all, tag ->
+            all.filter(tag::matches)
         }.stateIn(
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(5_000),
             initialValue = emptyList()
         )
+
+    // ===== 多选状态 =====
+    private val _isMultiSelectMode = MutableStateFlow(false)
+    val isMultiSelectMode: StateFlow<Boolean> = _isMultiSelectMode.asStateFlow()
+
+    private val _selectedIds = MutableStateFlow<Set<Long>>(emptySet())
+    val selectedIds: StateFlow<Set<Long>> = _selectedIds.asStateFlow()
 
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
@@ -91,10 +110,11 @@ class MaterialViewModel @Inject constructor(
         }
     }
 
-    /** 切换 Tab。 */
-    fun selectTab(tab: TabType) {
-        _selectedTab.value = tab
+    /** 切换筛选标签。 */
+    fun selectFilterTag(tag: MaterialFilterTag) {
+        _filterTag.value = tag
     }
+
 
     /** FAB 点击：请求 UI 拉起系统选择器。 */
     fun importMaterial() {
@@ -103,6 +123,8 @@ class MaterialViewModel @Inject constructor(
 
     /**
      * UI 选择文件后回传，持久化到素材库并刷新列表。
+     *
+     * 仓库层会处理 content:// URI 复制与持久化，UI 层只需把原始 URI 字符串传入。
      *
      * @param path 文件路径或内容 URI 字符串
      * @param type 素材类型（video / image / other）
@@ -118,6 +140,24 @@ class MaterialViewModel @Inject constructor(
         }
     }
 
+    /**
+     * 更新素材的编辑字段（标签 + 备注）。
+     */
+    fun updateMaterial(id: Long, tags: List<String>, note: String) {
+        viewModelScope.launch {
+            runCatching {
+                withContext(dispatchers.io) {
+                    materialRepository.updateMaterial(id = id, tags = tags, note = note)
+                }
+            }.onSuccess {
+                // 乐观更新本地列表
+                _allMaterials.value = _allMaterials.value.map { entity ->
+                    if (entity.id == id) entity.copy(tags = tags, note = note) else entity
+                }
+            }.onFailure { _error.value = "保存失败" }
+        }
+    }
+
     /** 删除指定 ID 的素材。 */
     fun deleteMaterial(id: Long) {
         viewModelScope.launch {
@@ -126,8 +166,51 @@ class MaterialViewModel @Inject constructor(
             }.onSuccess {
                 // 乐观本地更新，避免等待数据库刷新
                 _allMaterials.value = _allMaterials.value.filterNot { it.id == id }
+                // 同步移除选中
+                _selectedIds.value = _selectedIds.value - id
             }.onFailure {
                 _error.value = "删除失败"
+            }
+        }
+    }
+
+    // ===== 多选模式 =====
+
+    /** 进入多选模式并预选中指定素材。 */
+    fun enterMultiSelect(initialId: Long) {
+        _isMultiSelectMode.value = true
+        _selectedIds.value = setOf(initialId)
+    }
+
+    /** 退出多选模式并清空选中。 */
+    fun exitMultiSelect() {
+        _isMultiSelectMode.value = false
+        _selectedIds.value = emptySet()
+    }
+
+    /** 在多选模式下切换选中状态；若全部取消则自动退出。 */
+    fun toggleSelection(id: Long) {
+        if (!_isMultiSelectMode.value) return
+        val current = _selectedIds.value
+        _selectedIds.value = if (id in current) current - id else current + id
+        if (_selectedIds.value.isEmpty()) {
+            _isMultiSelectMode.value = false
+        }
+    }
+
+    /** 批量删除当前选中的素材，删除完成后自动退出多选模式。 */
+    fun deleteSelected() {
+        val ids = _selectedIds.value
+        if (ids.isEmpty()) return
+        viewModelScope.launch {
+            runCatching {
+                withContext(dispatchers.io) { materialRepository.deleteMaterials(ids) }
+            }.onSuccess {
+                _allMaterials.value = _allMaterials.value.filterNot { it.id in ids }
+                _selectedIds.value = emptySet()
+                _isMultiSelectMode.value = false
+            }.onFailure {
+                _error.value = "批量删除失败"
             }
         }
     }

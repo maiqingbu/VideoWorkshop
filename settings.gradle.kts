@@ -1,21 +1,20 @@
 pluginManagement {
     repositories {
-        maven { url = uri("https://maven.aliyun.com/repository/google") }
-        maven { url = uri("https://maven.aliyun.com/repository/central") }
-        maven { url = uri("https://maven.aliyun.com/repository/gradle-plugin") }
-        google()
+        // 直连 Maven Central 与 Gradle Plugin Portal（阿里云 central 镜像对部分 plugin marker POM 返回 502）
         mavenCentral()
         gradlePluginPortal()
+        // 阿里云 Google 镜像（dl.google.com 在当前网络不可达，AGP 等 Google-only 工件必须走镜像）
+        maven { url = uri("https://maven.aliyun.com/repository/google") }
+        google()
     }
 }
 
 dependencyResolutionManagement {
     repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
     repositories {
-        maven { url = uri("https://maven.aliyun.com/repository/google") }
-        maven { url = uri("https://maven.aliyun.com/repository/central") }
-        google()
         mavenCentral()
+        maven { url = uri("https://maven.aliyun.com/repository/google") }
+        google()
     }
 }
 
@@ -50,3 +49,6 @@ include(":feature:feature-imageeditor")
 include(":feature:feature-goods")
 include(":feature:feature-material")
 include(":feature:feature-publish")
+include(":feature:feature-abtransport")
+include(":feature:feature-history")
+include(":feature:feature-settings")

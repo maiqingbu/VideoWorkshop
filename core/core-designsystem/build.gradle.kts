@@ -8,6 +8,8 @@ android {
     namespace = "com.videoworkshop.core.designsystem"
     compileSdk = 35
 
+    buildToolsVersion = "35.0.0"
+
     defaultConfig {
         minSdk = 24
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

@@ -10,6 +10,8 @@ android {
     namespace = "com.videoworkshop.feature.material"
     compileSdk = 35
 
+    buildToolsVersion = "35.0.0"
+
     defaultConfig {
         minSdk = 24
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -70,8 +72,13 @@ dependencies {
     ksp(libs.hilt.compiler)
     implementation(libs.hilt.navigation.compose)
 
+    // ===== Media3 (ExoPlayer) =====
+    implementation(libs.androidx.media3.exoplayer)
+    implementation(libs.androidx.media3.ui)
+
     // ===== Coil =====
     implementation(libs.coil.compose)
+    implementation(libs.coil.video)
 
     // ===== Coroutines =====
     implementation(libs.kotlinx.coroutines.android)

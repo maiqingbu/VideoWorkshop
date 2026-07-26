@@ -6,11 +6,14 @@ import android.app.NotificationManager
 import android.os.Build
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
+import coil.ImageLoader
+import coil.ImageLoaderFactory
+import coil.decode.VideoFrameDecoder
 import dagger.hilt.android.HiltAndroidApp
 import javax.inject.Inject
 
 @HiltAndroidApp
-class VideoWorkshopApp : Application(), Configuration.Provider {
+class VideoWorkshopApp : Application(), Configuration.Provider, ImageLoaderFactory {
 
     @Inject
     lateinit var workerFactory: HiltWorkerFactory
@@ -19,6 +22,14 @@ class VideoWorkshopApp : Application(), Configuration.Provider {
         get() = Configuration.Builder()
             .setWorkerFactory(workerFactory)
             .build()
+
+    /**
+     * 全局 Coil ImageLoader：注册 [VideoFrameDecoder] 以支持视频首帧缩略图，
+     * 供素材库 [com.videoworkshop.feature.material] 的 AsyncImage 加载使用。
+     */
+    override fun newImageLoader(): ImageLoader = ImageLoader.Builder(this)
+        .components { add(VideoFrameDecoder.Factory()) }
+        .build()
 
     override fun onCreate() {
         super.onCreate()

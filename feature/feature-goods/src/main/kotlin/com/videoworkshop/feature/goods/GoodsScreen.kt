@@ -33,9 +33,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -64,6 +67,7 @@ import com.videoworkshop.core.ui.components.BadgeType
 import com.videoworkshop.core.ui.components.GradientButton
 import com.videoworkshop.core.ui.components.VWTopBar
 import com.videoworkshop.domain.model.AllianceProvider
+import com.videoworkshop.domain.model.ContentType
 import com.videoworkshop.domain.model.Goods
 
 /**
@@ -71,6 +75,10 @@ import com.videoworkshop.domain.model.Goods
  *
  * 顶部 [VWTopBar] + 圆角搜索框 + 平台切换 Tab，下方为商品列表（搜索前展示热门推荐），
  * 底部为可折叠的「手动输入商品链接」区域。
+ *
+ * FIX-04：标题按入口差异化 —— 商品库入口显示「商品库」，否则按 mode 显示
+ * 「选择视频带货商品」/「选择图文带货商品」。
+ * FIX-02：非法链接通过 [SnackbarHostState] 提示「链接格式无法识别」。
  */
 @Composable
 fun GoodsScreen(
@@ -80,11 +88,29 @@ fun GoodsScreen(
     onProviderSelected: (AllianceProvider) -> Unit,
     onGoodsSelected: (Goods) -> Unit,
     onManualLinkSubmit: (String) -> Unit,
+    onConsumeError: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // 监听一次性错误态，弹出 Snackbar 后立即清空，避免回退时重复提示
+    LaunchedEffect(uiState.error) {
+        uiState.error?.let {
+            snackbarHostState.showSnackbar(it)
+            onConsumeError()
+        }
+    }
+
+    val title = when {
+        uiState.isLibrary -> "商品库"
+        uiState.mode == ContentType.IMAGE -> "选择图文带货商品"
+        else -> "选择视频带货商品"
+    }
+
     Scaffold(
         modifier = modifier,
-        topBar = { VWTopBar(title = "选择带货商品", onBack = onBack) }
+        topBar = { VWTopBar(title = title, onBack = onBack) },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { innerPadding ->
         Column(
             modifier = Modifier

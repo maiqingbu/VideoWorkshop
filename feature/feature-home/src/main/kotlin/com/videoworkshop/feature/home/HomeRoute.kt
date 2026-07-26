@@ -20,7 +20,10 @@ object HomeRoute {
 /**
  * 将首页接入导航图。
  *
- * 点击「视频带货」跳转 `goods/video`，点击「图文带货」跳转 `goods/image`。
+ * 点击「视频带货」跳转 `goods/video`，点击「图文带货」跳转 `goods/image`，
+ * 点击「AB 搬运」卡片跳转 `abtransport` 路由，
+ * 点击快捷入口「发布记录」跳转 `history` 路由。
+ *
  * 通过观察 [HomeUiState.selectedMode] 触发一次性导航，跳转后立即清空，避免回退时重复触发。
  */
 fun NavGraphBuilder.homeNavGraph(navController: NavController) {
@@ -43,12 +46,14 @@ fun NavGraphBuilder.homeNavGraph(navController: NavController) {
             uiState = uiState,
             onVideoMode = viewModel::selectVideoMode,
             onImageMode = viewModel::selectImageMode,
+            onABTransport = {
+                navController.navigate("abtransport?videoA=")
+            },
             onRefresh = viewModel::refresh,
             onQuickAction = { action ->
                 when (action) {
                     QuickAction.MATERIAL -> navController.navigate("material")
-                    QuickAction.GOODS -> navController.navigate("goods/video")
-                    QuickAction.PUBLISH_RECORDS -> Unit // 暂无独立的发布记录列表页
+                    QuickAction.PUBLISH_RECORDS -> navController.navigate("history")
                 }
             }
         )

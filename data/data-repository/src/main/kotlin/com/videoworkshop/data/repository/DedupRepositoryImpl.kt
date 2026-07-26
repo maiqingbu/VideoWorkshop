@@ -6,7 +6,11 @@ import com.videoworkshop.core.ffmpeg.FfprobeHelper
 import com.videoworkshop.core.ffmpeg.enhance.AudioMixer
 import com.videoworkshop.core.ffmpeg.enhance.StickerOverlayer
 import com.videoworkshop.core.ffmpeg.enhance.SubtitleBurner
+import com.videoworkshop.core.ffmpeg.enhance.ThumbnailExtractor
+import com.videoworkshop.core.ffmpeg.operators.AVStreamSwapper
 import com.videoworkshop.core.ffmpeg.pipeline.DedupCommandBuilder
+import com.videoworkshop.domain.model.ABTransportConfig
+import com.videoworkshop.domain.model.ABTransportProgress
 import com.videoworkshop.domain.model.DedupConfig
 import com.videoworkshop.domain.model.DedupProgress
 import com.videoworkshop.domain.model.EnhanceConfig
@@ -14,6 +18,9 @@ import com.videoworkshop.domain.model.VideoClip
 import com.videoworkshop.domain.repository.DedupRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -22,7 +29,7 @@ import javax.inject.Inject
 import kotlin.coroutines.resume
 
 /**
- * [DedupRepository] 实现：基于 FFmpeg 的视频去重、信息解析与增强。
+ * [DedupRepository] 实现：基于 FFmpeg 的视频去重、信息解析、增强与 AB 搬运。
  *
  * 去重流程：
  * 1. 通过 [FfprobeHelper] 获取视频元信息（时长、码率、帧率等）
@@ -35,10 +42,20 @@ import kotlin.coroutines.resume
  * - 每步输出作为下一步输入，最终输出到指定路径
  * - 总体进度 = (已完成步骤 + 当前步骤进度) / 总步骤数
  *
+ * AB 搬运流程：
+ * - 委托 [AVStreamSwapper] 完成「探测 → 命令构建 → 执行 → 进度推送」完整链路
+ * - AVStreamSwapper 内部已封装 PURE_REPLACE/MIX 模式与 TRUNCATE/LOOP/CUSTOM 时长策略
+ * - 本仓库仅负责：调用 [AVStreamSwapper.swap]，并将 core-ffmpeg 层的进度类型
+ *   映射为 domain 层的 [ABTransportProgress]（error 由 Throwable 投射为 String）
+ * - 探测阶段异常（文件不存在、A 视频无音轨等）通过 [flow] + [catch] 转为
+ *   单条 error 进度发射，避免上层调用方需要 try/catch
+ *
  * @param dispatchers 协程调度器
+ * @param avStreamSwapper AB 搬运执行器，由 DI 提供默认实例（基于 [FfmpegEngine]）
  */
 class DedupRepositoryImpl @Inject constructor(
-    private val dispatchers: DispatcherProvider
+    private val dispatchers: DispatcherProvider,
+    private val avStreamSwapper: AVStreamSwapper
 ) : DedupRepository {
 
     override suspend fun dedupVideo(
@@ -109,6 +126,36 @@ class DedupRepositoryImpl @Inject constructor(
             FfprobeHelper.getVideoInfo(path)
         }
 
+    override suspend fun hasAudioTrack(path: String): Boolean =
+        withContext(dispatchers.io) {
+            FfprobeHelper.hasAudioTrack(path)
+        }
+
+    override suspend fun extractKeyframes(
+        videoPath: String,
+        count: Int,
+        outputDir: String
+    ): List<String> = withContext(dispatchers.io) {
+        if (count <= 0) return@withContext emptyList()
+        val clip = runCatching { FfprobeHelper.getVideoInfo(videoPath) }.getOrNull()
+            ?: return@withContext emptyList()
+        if (clip.duration <= 0L) return@withContext emptyList()
+
+        val dir = File(outputDir).apply { if (!exists()) mkdirs() }
+        val durationSec = clip.duration / 1000.0
+        // 均匀采样：在 [0, duration] 内取 count 个点
+        val steps = if (count == 1) listOf(0.0) else (0 until count).map { it.toDouble() / (count - 1) * durationSec }
+        val results = mutableListOf<String>()
+        val baseName = File(videoPath).nameWithoutExtension
+        steps.forEachIndexed { index, ts ->
+            val out = File(dir, "${baseName}_kf_$index.jpg").absolutePath
+            val cmd = ThumbnailExtractor.buildExtractCommand(videoPath, ts.toFloat(), out)
+            val ok = runCatching { FfmpegEngine.execute(cmd) }.getOrDefault(false)
+            if (ok && File(out).exists()) results.add(out)
+        }
+        results
+    }
+
     override suspend fun enhanceVideo(
         inputPath: String,
         outputPath: String,
@@ -152,6 +199,63 @@ class DedupRepositoryImpl @Inject constructor(
             }
 
             trySend(1f)
+        }
+    }
+
+    override suspend fun abTransport(config: ABTransportConfig): Flow<ABTransportProgress> {
+        // 预检查：A/B 视频文件必须存在，避免 probe 阶段抛出晦涩的 FFmpeg 错误
+        val missingFile = listOf(config.videoAPath, config.videoBPath)
+            .firstOrNull { !File(it).exists() }
+        if (missingFile != null) {
+            return flow {
+                emit(
+                    ABTransportProgress(
+                        progress = 0f,
+                        currentMs = 0L,
+                        totalMs = 0L,
+                        error = "视频文件不存在: $missingFile"
+                    )
+                )
+            }
+        }
+
+        // 调用 AVStreamSwapper.swap()，并将 core-ffmpeg 进度类型映射为 domain 进度类型
+        // - swap() 是 suspend：probe 阶段失败会抛异常，通过 catch 转为单条 error 进度
+        // - 返回的 Flow 在收集阶段可能发射 error 进度（FFmpeg 失败），同样通过 catch 兜底
+        return try {
+            avStreamSwapper.swap(config)
+                .map { coreProgress ->
+                    ABTransportProgress(
+                        progress = coreProgress.progress,
+                        currentMs = coreProgress.currentMs,
+                        totalMs = coreProgress.totalMs,
+                        outputPath = coreProgress.outputPath,
+                        error = coreProgress.error?.message
+                    )
+                }
+                .catch { throwable ->
+                    // 兜底：收集阶段未预期的异常（如 A 视频无音轨导致 FFmpeg 异常退出）
+                    emit(
+                        ABTransportProgress(
+                            progress = 0f,
+                            currentMs = 0L,
+                            totalMs = 0L,
+                            error = throwable.message ?: "AB 搬运执行失败"
+                        )
+                    )
+                }
+        } catch (throwable: Throwable) {
+            // probe 阶段失败（如 FfprobeHelper 解析失败、文件不可读、A 视频无音轨等）
+            flow {
+                emit(
+                    ABTransportProgress(
+                        progress = 0f,
+                        currentMs = 0L,
+                        totalMs = 0L,
+                        error = throwable.message ?: "AB 搬运初始化失败"
+                    )
+                )
+            }
         }
     }
 

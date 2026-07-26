@@ -59,6 +59,24 @@ object FfprobeHelper {
     }
 
     /**
+     * 检测视频文件是否包含音频流。
+     *
+     * 用于 AB 搬运前置校验：A 视频必须含音轨才能作为音频源。
+     *
+     * @param path 视频文件路径。
+     * @return `true` 表示至少存在一条音频流；解析失败时返回 `false`。
+     */
+    suspend fun hasAudioTrack(path: String): Boolean = withContext(Dispatchers.IO) {
+        val session = FFprobeKit.getMediaInformation(path)
+        val mediaInfo = session.mediaInformation
+        if (mediaInfo == null || !ReturnCode.isSuccess(session.returnCode)) {
+            return@withContext false
+        }
+        val streams = mediaInfo.streams ?: return@withContext false
+        streams.any { it.type == STREAM_TYPE_AUDIO }
+    }
+
+    /**
      * 从媒体信息中查找视频流。
      */
     private fun findVideoStream(mediaInfo: MediaInformation): StreamInformation? {
@@ -153,5 +171,6 @@ object FfprobeHelper {
     }
 
     private const val STREAM_TYPE_VIDEO = "video"
+    private const val STREAM_TYPE_AUDIO = "audio"
     private const val DEFAULT_FPS = 30f
 }

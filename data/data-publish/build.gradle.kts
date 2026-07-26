@@ -9,6 +9,8 @@ android {
     namespace = "com.videoworkshop.data.publish"
     compileSdk = 35
 
+    buildToolsVersion = "35.0.0"
+
     defaultConfig {
         minSdk = 24
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

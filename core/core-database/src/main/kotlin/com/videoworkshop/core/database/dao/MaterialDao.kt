@@ -31,8 +31,16 @@ interface MaterialDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertAll(entities: List<MaterialEntity>)
 
+    /** 更新编辑字段（标签 + 备注）。 */
+    @Query("UPDATE materials SET tags = :tags, note = :note WHERE id = :id")
+    suspend fun updateMeta(id: String, tags: List<String>, note: String)
+
     @Query("DELETE FROM materials WHERE id = :id")
     suspend fun deleteById(id: String)
+
+    /** 批量删除指定 ID 的素材。 */
+    @Query("DELETE FROM materials WHERE id IN (:ids)")
+    suspend fun deleteByIds(ids: List<String>)
 
     @Query("DELETE FROM materials")
     suspend fun clear()

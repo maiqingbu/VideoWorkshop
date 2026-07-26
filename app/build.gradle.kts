@@ -11,6 +11,8 @@ android {
     namespace = "com.videoworkshop.app"
     compileSdk = 35
 
+    buildToolsVersion = "35.0.0"
+
     defaultConfig {
         applicationId = "com.videoworkshop.app"
         minSdk = 24
@@ -18,7 +20,7 @@ android {
         versionCode = 1
         versionName = "1.0.0"
 
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner = "com.videoworkshop.app.smoketest.CustomTestRunner"
         vectorDrawables { useSupportLibrary = true }
     }
 
@@ -95,6 +97,9 @@ dependencies {
     implementation(project(":feature:feature-goods"))
     implementation(project(":feature:feature-material"))
     implementation(project(":feature:feature-publish"))
+    implementation(project(":feature:feature-abtransport"))
+    implementation(project(":feature:feature-history"))
+    implementation(project(":feature:feature-settings"))
 
     // AndroidX
     implementation(libs.androidx.core.ktx)
@@ -135,4 +140,16 @@ dependencies {
     // Coil
     implementation(libs.coil.compose)
     implementation(libs.coil.video)
+
+    // ===== androidTest（UI 冒烟测试）=====
+    androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.espresso.core)
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    androidTestImplementation(libs.hilt.android.testing)
+    androidTestImplementation(libs.hilt.navigation.compose)
+    androidTestImplementation(libs.mockk)
+    androidTestImplementation(libs.kotlinx.coroutines.test)
+    kspAndroidTest(libs.hilt.compiler)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
 }
