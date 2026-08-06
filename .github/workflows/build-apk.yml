@@ -61,6 +61,9 @@ jobs:
       - name: Build debug APK
         run: gradle :app:assembleDebug --no-daemon --stacktrace --no-configuration-cache
 
+      - name: Run unit tests
+        run: gradle testDebugUnitTest --no-daemon --stacktrace --no-configuration-cache
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
