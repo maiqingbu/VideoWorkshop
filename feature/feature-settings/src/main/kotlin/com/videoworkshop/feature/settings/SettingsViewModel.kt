@@ -9,7 +9,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -177,9 +176,8 @@ class SettingsViewModel @Inject constructor(
         _isLoading,
         combine(_editingFieldKey, _editingInitialValue, _cache) { k, v, c -> Triple(k, v, c) },
         _toast,
-        preferenceRepository.themeMode,
-        flowOf(Unit)
-    ) { creds, loading, editCache, toast, themeMode, _ ->
+        preferenceRepository.themeMode
+    ) { creds, loading, editCache, toast, themeMode ->
         val (editingKey, editingInit, cache) = editCache
         SettingsUiState(
             isLoading = loading,

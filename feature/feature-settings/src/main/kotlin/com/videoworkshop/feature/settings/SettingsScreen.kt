@@ -3,6 +3,7 @@ package com.videoworkshop.feature.settings
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
@@ -317,7 +318,7 @@ private fun PlatformFieldDialog(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 12.dp)
-                            .androidx_compose_clickable { onSelect(field) }
+                            .clickable { onSelect(field) }
                     )
                 }
             }
@@ -353,7 +354,7 @@ private fun ThemeModeDialog(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 12.dp)
-                            .androidx_compose_clickable { onSelect(mode) }
+                            .clickable { onSelect(mode) }
                     )
                 }
             }
@@ -365,9 +366,6 @@ private fun ThemeModeDialog(
 }
 
 // 局部点击扩展：避免工具栏占用，直接在行文本上绑定点击。
-private fun Modifier.androidx_compose_clickable(onClick: () -> Unit): Modifier =
-    this.then(androidx.compose.foundation.clickable(onClick = onClick))
-
 private fun themeModeLabel(mode: String): String = when (mode) {
     "light" -> "浅色"
     "dark" -> "深色"
