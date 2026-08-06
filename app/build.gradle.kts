@@ -68,6 +68,7 @@ android {
 dependencies {
     // FFmpegKit (community-maintained)
     implementation(libs.ffmpegkit.full)
+    implementation(libs.smart.exception.java)
     implementation(libs.androidx.annotation)
 
     // Core modules
@@ -88,6 +89,7 @@ dependencies {
     implementation(project(":data:data-ai"))
     implementation(project(":data:data-repository"))
     implementation(project(":data:data-publish"))
+    implementation(project(":data:data-project"))
 
     // Feature
     implementation(project(":feature:feature-home"))
@@ -100,6 +102,7 @@ dependencies {
     implementation(project(":feature:feature-abtransport"))
     implementation(project(":feature:feature-history"))
     implementation(project(":feature:feature-settings"))
+    implementation(project(":feature:feature-project"))
 
     // AndroidX
     implementation(libs.androidx.core.ktx)

@@ -88,6 +88,7 @@ data class SettingsUiState(
     val alliance: AllianceSettings = AllianceSettings(),
     val about: AboutInfo = AboutInfo(versionName = "", buildTime = ""),
     val cache: CacheInfo = CacheInfo(sizeBytes = 0L),
+    val themeMode: String = "system",
     val editingFieldKey: String? = null,
     val editingInitialValue: String = "",
     val toast: String? = null
@@ -176,8 +177,9 @@ class SettingsViewModel @Inject constructor(
         _isLoading,
         combine(_editingFieldKey, _editingInitialValue, _cache) { k, v, c -> Triple(k, v, c) },
         _toast,
+        preferenceRepository.themeMode,
         flowOf(Unit)
-    ) { creds, loading, editCache, toast, _ ->
+    ) { creds, loading, editCache, toast, themeMode, _ ->
         val (editingKey, editingInit, cache) = editCache
         SettingsUiState(
             isLoading = loading,
@@ -185,6 +187,7 @@ class SettingsViewModel @Inject constructor(
             alliance = creds.alliance,
             about = appInfoProvider.about(),
             cache = cache,
+            themeMode = themeMode.ifBlank { "system" },
             editingFieldKey = editingKey,
             editingInitialValue = editingInit,
             toast = toast
@@ -261,6 +264,15 @@ class SettingsViewModel @Inject constructor(
     /** 清除一次性 toast。 */
     fun consumeToast() {
         _toast.value = null
+    }
+
+    /** 切换主题模式：system（跟随系统）/ light（浅色）/ dark（深色）。 */
+    fun setThemeMode(mode: String) {
+        viewModelScope.launch {
+            withContext(dispatchers.io) {
+                preferenceRepository.setThemeMode(mode)
+            }
+        }
     }
 
     // ===== 内部工具 =====

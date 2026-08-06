@@ -226,11 +226,15 @@ class AVStreamSwapper(
      * 输入顺序：输入 0 = B（画面源），输入 1 = A（音频源）。
      * 命令结构：
      * ```
-     * ffmpeg [-ss X -to Y] -i "B" [-ss X -to Y] -i "A" \
+     * ffmpeg [-ss X -to Y] -i B [-ss X -to Y] -i A \
      *   [PURE_REPLACE: -map 0:v:0 -map 1:a:0] \
-     *   [MIX: -filter_complex "..." -map 0:v:0 -map [aout]] \
-     *   -c:v copy -c:a aac [-shortest] -y "OUTPUT"
+     *   [MIX: -filter_complex ... -map 0:v:0 -map [aout]] \
+     *   -c:v copy -c:a aac [-shortest] -y OUTPUT
      * ```
+     *
+     * 注意：FFmpegKit 按空格切分命令字符串且不解析 shell 引号，
+     * 因此路径与滤镜图均以裸字符串形式拼接，**不能包含任何双引号字符**。
+     * 调用方需保证路径中不含空格（Android 应用沙盒路径通常满足此约束）。
      *
      * @param config 搬运配置。
      * @return 完整的 FFmpeg 命令字符串（含 `ffmpeg` 前缀）。
@@ -272,7 +276,7 @@ class AVStreamSwapper(
         parts.add("-y")
         parts.add(config.outputPath)
 
-        return parts.joinToString(" ") { quoteIfNeeded(it) }
+        return parts.joinToString(" ")
     }
 
     /**
@@ -318,29 +322,8 @@ class AVStreamSwapper(
     /** 音量格式化（2 位小数）。固定使用 [Locale.US] 避免本地化小数分隔符。 */
     private fun formatVolume(v: Float): String = String.format(Locale.US, "%.2f", v)
 
-    /**
-     * 含空格或冒号的 token 加引号；flag（`-` 开头）与滤镜标签（`[` 开头）原样输出。
-     *
-     * FFmpeg 流选择器（如 `0:v:0`、`1:a:0`）使用 `:` 作分隔符但**不应**被加引号，
-     * 否则 FFmpeg 会将其识别为文件名导致 `-map` 失败。故需先排除流选择器再做引号判定。
-     */
-    private fun quoteIfNeeded(token: String): String {
-        if (token.startsWith("-") || token.startsWith("[")) return token
-        if (isStreamSpecifier(token)) return token
-        if (token.any { it.isWhitespace() || it == ':' }) return "\"$token\""
-        return token
-    }
-
-    /** 判断是否为 FFmpeg 流选择器（形如 `0:v:0`、`1:a:0`、`0:s:1`）。 */
-    private fun isStreamSpecifier(token: String): Boolean {
-        return STREAM_SPECIFIER_REGEX.matches(token)
-    }
-
     private companion object {
         const val LABEL_AOUT = "[aout]"
-
-        /** 匹配 FFmpeg 流选择器：`输入索引:流类型:流索引`，如 `0:v:0`、`1:a:0`、`0:s:1`。 */
-        val STREAM_SPECIFIER_REGEX = Regex("""\d+:[avs]:\d+""")
     }
 }
 

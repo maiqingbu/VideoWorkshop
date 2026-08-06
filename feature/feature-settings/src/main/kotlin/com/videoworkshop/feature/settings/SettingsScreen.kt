@@ -3,43 +3,27 @@ package com.videoworkshop.feature.settings
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.OpenInNew
-import androidx.compose.material.icons.filled.Brush
-import androidx.compose.material.icons.filled.CleaningServices
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Key
-import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.Store
-import androidx.compose.material.icons.filled.VerifiedUser
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -51,40 +35,25 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.videoworkshop.core.designsystem.theme.BrandRed
-import com.videoworkshop.core.designsystem.theme.NeutralGray
-import com.videoworkshop.core.designsystem.theme.SemanticInfo
+import com.videoworkshop.core.designsystem.theme.InkSecondary
+import com.videoworkshop.core.designsystem.theme.InkTertiary
+import com.videoworkshop.core.designsystem.theme.PinePrimary
 import com.videoworkshop.core.designsystem.theme.SemanticSuccess
-import com.videoworkshop.core.designsystem.theme.SemanticWarning
-import com.videoworkshop.core.ui.components.GradientButton
-import com.videoworkshop.core.ui.components.VWTopBar
+import com.videoworkshop.core.designsystem.theme.VWSpacing
+import com.videoworkshop.core.designsystem.theme.VWTypeScale
+import com.videoworkshop.core.ui.components.VWListRow
+import com.videoworkshop.core.ui.components.VWTopAppBar
 
 /**
- * 设置页主入口 Composable。
+ * 设置页（素简工坊分组列表）。
  *
- * 顶部使用 [VWTopBar] 标题「我的」，内容区以分组卡片形式展示：
- * - AI 设置：DeepSeek / Azure / Groq 三项 API Key
- * - 联盟凭证：淘宝 / 京东 / 拼多多 AppKey/AppSecret
- * - 关于：版本号 / 构建时间 / GitHub 链接
- * - 缓存清理：显示当前缓存大小与清理按钮
- *
- * 凭证编辑通过 [CredentialEditDialog] 弹窗完成。
- *
- * @param state      UI 状态
- * @param onStartEdit 点击某个凭证项触发，参数为待编辑字段
- * @param onSaveEdit  保存编辑值
- * @param onCancelEdit 取消编辑
- * @param onClearCache 清理缓存
- * @param onConsumeToast 清除一次性 toast
+ * 采用分组列表：智能服务 / 商品平台 / 导出与存储 / 外观 / 关于。
+ * 每行只显示名称、状态与箭头，不展示大盘凭证卡；清理缓存使用次级按钮，不使用渐变红。
  */
 @Composable
 fun SettingsScreen(
@@ -93,10 +62,14 @@ fun SettingsScreen(
     onSaveEdit: (String) -> Unit,
     onCancelEdit: () -> Unit,
     onClearCache: () -> Unit,
+    onThemeModeChange: (String) -> Unit,
     onConsumeToast: () -> Unit
 ) {
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
+    var showThemeDialog by remember { mutableStateOf(false) }
+    var showClearCacheDialog by remember { mutableStateOf(false) }
+    var pendingPlatform by remember { mutableStateOf<Platform?>(null) }
 
     LaunchedEffect(state.toast) {
         state.toast?.let {
@@ -107,164 +80,114 @@ fun SettingsScreen(
 
     val editingField = state.editingFieldKey?.let { SettingsField.from(it) }
 
-    Scaffold(
-        topBar = { VWTopBar(title = "我的") },
-        snackbarHost = { SnackbarHost(snackbarHostState) },
-        containerColor = MaterialTheme.colorScheme.background
-    ) { innerPadding ->
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
+        VWTopAppBar(title = "设置")
+
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(vertical = VWSpacing.sm)
         ) {
-            // ===== AI 设置 =====
+            // ===== 智能服务 =====
+            item { GroupHeader("智能服务") }
             item {
-                SettingsGroupCard(
-                    title = "AI 设置",
-                    subtitle = "API Key 用于运行时注入 data-ai 模块",
-                    icon = Icons.Filled.Brush,
-                    iconTint = BrandRed
-                ) {
-                    CredentialRow(
-                        label = state.ai.deepSeekKey.label,
-                        masked = state.ai.deepSeekKey.masked,
-                        configured = state.ai.deepSeekKey.isConfigured,
-                        onClick = { onStartEdit(SettingsField.DEEPSEEK_KEY) }
-                    )
-                    CredentialRow(
-                        label = state.ai.azureKey.label,
-                        masked = state.ai.azureKey.masked,
-                        configured = state.ai.azureKey.isConfigured,
-                        onClick = { onStartEdit(SettingsField.AZURE_KEY) }
-                    )
-                    CredentialRow(
-                        label = state.ai.groqKey.label,
-                        masked = state.ai.groqKey.masked,
-                        configured = state.ai.groqKey.isConfigured,
-                        onClick = { onStartEdit(SettingsField.GROQ_KEY) }
-                    )
-                }
+                ServiceRow(
+                    label = "文案服务",
+                    configured = state.ai.deepSeekKey.isConfigured,
+                    onClick = { onStartEdit(SettingsField.DEEPSEEK_KEY) }
+                )
+            }
+            item {
+                ServiceRow(
+                    label = "语音识别",
+                    configured = state.ai.azureKey.isConfigured,
+                    onClick = { onStartEdit(SettingsField.AZURE_KEY) }
+                )
+            }
+            item {
+                ServiceRow(
+                    label = "智能配音",
+                    configured = state.ai.groqKey.isConfigured,
+                    onClick = { onStartEdit(SettingsField.GROQ_KEY) }
+                )
             }
 
-            // ===== 联盟凭证 =====
+            // ===== 商品平台 =====
+            item { GroupHeader("商品平台") }
+            items(Platform.entries) { platform ->
+                PlatformRow(
+                    platform = platform,
+                    connected = platform.isConnected(state),
+                    onClick = { pendingPlatform = platform }
+                )
+            }
+
+            // ===== 导出与存储 =====
+            item { GroupHeader("导出与存储") }
             item {
-                SettingsGroupCard(
-                    title = "联盟凭证",
-                    subtitle = if (state.alliance.anyConfigured) {
-                        "已配置，将使用真实接口"
-                    } else {
-                        "未配置，将使用 Mock 数据"
+                VWListRow(
+                    title = "缓存管理",
+                    trailing = {
+                        Text(
+                            text = SettingsViewModel.formatCacheSize(state.cache.sizeBytes),
+                            style = VWTypeScale.body,
+                            color = InkSecondary
+                        )
                     },
-                    icon = Icons.Filled.Store,
-                    iconTint = if (state.alliance.anyConfigured) SemanticSuccess else SemanticWarning,
-                    subtitleTint = if (state.alliance.anyConfigured) SemanticSuccess else SemanticWarning
-                ) {
-                    ProviderSubgroup(title = "淘宝") {
-                        CredentialRow(
-                            label = state.alliance.taobaoAppKey.label,
-                            masked = state.alliance.taobaoAppKey.masked,
-                            configured = state.alliance.taobaoAppKey.isConfigured,
-                            onClick = { onStartEdit(SettingsField.TAOBAO_APPKEY) }
+                    showTrailingArrow = true,
+                    onClick = { showClearCacheDialog = true }
+                )
+            }
+
+            // ===== 外观 =====
+            item { GroupHeader("外观") }
+            item {
+                VWListRow(
+                    title = "深色模式",
+                    trailing = {
+                        Text(
+                            text = themeModeLabel(state.themeMode),
+                            style = VWTypeScale.body,
+                            color = InkSecondary
                         )
-                        CredentialRow(
-                            label = state.alliance.taobaoSecret.label,
-                            masked = state.alliance.taobaoSecret.masked,
-                            configured = state.alliance.taobaoSecret.isConfigured,
-                            onClick = { onStartEdit(SettingsField.TAOBAO_SECRET) }
-                        )
-                    }
-                    ProviderSubgroup(title = "京东") {
-                        CredentialRow(
-                            label = state.alliance.jdAppKey.label,
-                            masked = state.alliance.jdAppKey.masked,
-                            configured = state.alliance.jdAppKey.isConfigured,
-                            onClick = { onStartEdit(SettingsField.JD_APPKEY) }
-                        )
-                        CredentialRow(
-                            label = state.alliance.jdSecret.label,
-                            masked = state.alliance.jdSecret.masked,
-                            configured = state.alliance.jdSecret.isConfigured,
-                            onClick = { onStartEdit(SettingsField.JD_SECRET) }
-                        )
-                    }
-                    ProviderSubgroup(title = "拼多多") {
-                        CredentialRow(
-                            label = state.alliance.pddClientId.label,
-                            masked = state.alliance.pddClientId.masked,
-                            configured = state.alliance.pddClientId.isConfigured,
-                            onClick = { onStartEdit(SettingsField.PDD_CLIENT_ID) }
-                        )
-                        CredentialRow(
-                            label = state.alliance.pddClientSecret.label,
-                            masked = state.alliance.pddClientSecret.masked,
-                            configured = state.alliance.pddClientSecret.isConfigured,
-                            onClick = { onStartEdit(SettingsField.PDD_CLIENT_SECRET) }
-                        )
-                    }
-                }
+                    },
+                    showTrailingArrow = true,
+                    onClick = { showThemeDialog = true }
+                )
             }
 
             // ===== 关于 =====
+            item { GroupHeader("关于") }
             item {
-                SettingsGroupCard(
-                    title = "关于",
-                    icon = Icons.Filled.Info,
-                    iconTint = SemanticInfo
-                ) {
-                    InfoRow(label = "版本号", value = state.about.versionName.ifBlank { "—" })
-                    InfoRow(label = "构建时间", value = state.about.buildTime.ifBlank { "—" })
-                    InfoRow(
-                        label = "GitHub",
-                        value = state.about.githubUrl,
-                        trailing = {
-                            IconButton(onClick = {
-                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(state.about.githubUrl))
-                                runCatching { context.startActivity(intent) }
-                            }) {
-                                Icon(
-                                    imageVector = Icons.AutoMirrored.Filled.OpenInNew,
-                                    contentDescription = "在浏览器打开",
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                            }
-                        }
-                    )
-                }
-            }
-
-            // ===== 缓存清理 =====
-            item {
-                SettingsGroupCard(
-                    title = "缓存清理",
-                    subtitle = "仅清理 cacheDir 与临时产物，不影响素材库已导入文件",
-                    icon = Icons.Filled.CleaningServices,
-                    iconTint = BrandRed
-                ) {
-                    InfoRow(
-                        label = "当前缓存",
-                        value = SettingsViewModel.formatCacheSize(state.cache.sizeBytes)
-                    )
-                    Spacer(Modifier.height(10.dp))
-                    GradientButton(
-                        text = "清理缓存",
-                        onClick = onClearCache,
-                        leadingIcon = Icons.Filled.Delete,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
-            }
-
-            // 底部安全区
-            item {
-                Spacer(
-                    Modifier
-                        .fillMaxWidth()
-                        .height(48.dp)
+                VWListRow(
+                    title = "版本",
+                    trailing = {
+                        Text(
+                            text = state.about.versionName.ifBlank { "—" },
+                            style = VWTypeScale.body,
+                            color = InkSecondary
+                        )
+                    }
                 )
             }
+            item { HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant) }
+            item {
+                VWListRow(
+                    title = "诊断信息",
+                    subtitle = state.about.githubUrl,
+                    showTrailingArrow = true,
+                    onClick = {
+                        runCatching {
+                            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(state.about.githubUrl)))
+                        }
+                    }
+                )
+            }
+
+            item { Spacer(Modifier.height(32.dp)) }
         }
     }
 
@@ -276,175 +199,198 @@ fun SettingsScreen(
             onDismiss = onCancelEdit
         )
     }
+
+    if (pendingPlatform != null) {
+        PlatformFieldDialog(
+            platform = pendingPlatform!!,
+            onSelect = {
+                onStartEdit(it)
+                pendingPlatform = null
+            },
+            onDismiss = { pendingPlatform = null }
+        )
+    }
+
+    if (showThemeDialog) {
+        ThemeModeDialog(
+            current = state.themeMode,
+            onSelect = {
+                onThemeModeChange(it)
+                showThemeDialog = false
+            },
+            onDismiss = { showThemeDialog = false }
+        )
+    }
+
+    if (showClearCacheDialog) {
+        AlertDialog(
+            onDismissRequest = { showClearCacheDialog = false },
+            title = { Text("清理缓存") },
+            text = { Text("将清理 cacheDir 与临时产物，不影响素材库已导入文件。当前缓存 ${SettingsViewModel.formatCacheSize(state.cache.sizeBytes)}。") },
+            confirmButton = {
+                TextButton(onClick = {
+                    onClearCache()
+                    showClearCacheDialog = false
+                }) {
+                    Text("清理", color = PinePrimary)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showClearCacheDialog = false }) { Text("取消") }
+            }
+        )
+    }
 }
 
-// =============================================================================
-// 子组件
-// =============================================================================
-
-/**
- * 设置分组卡片：标题 + 副标题 + 图标 + 自定义内容。
- */
+/** 分组标题。 */
 @Composable
-private fun SettingsGroupCard(
-    title: String,
-    modifier: Modifier = Modifier,
-    subtitle: String? = null,
-    icon: ImageVector? = null,
-    iconTint: Color = BrandRed,
-    subtitleTint: Color = MaterialTheme.colorScheme.onSurfaceVariant,
-    content: @Composable () -> Unit
+private fun GroupHeader(title: String) {
+    Text(
+        text = title,
+        style = VWTypeScale.sectionTitle,
+        color = MaterialTheme.colorScheme.onSurface,
+        modifier = Modifier.padding(horizontal = VWSpacing.lg, vertical = VWSpacing.sm)
+    )
+}
+
+/** 智能服务行：名称 + 已配置/未配置状态。未配置用灰色，不使用橙色警告。 */
+@Composable
+private fun ServiceRow(label: String, configured: Boolean, onClick: () -> Unit) {
+    VWListRow(
+        title = label,
+        trailing = {
+            Text(
+                text = if (configured) "已配置" else "未配置",
+                style = VWTypeScale.body,
+                color = if (configured) SemanticSuccess else InkTertiary
+            )
+        },
+        showTrailingArrow = true,
+        onClick = onClick
+    )
+    RowDivider()
+}
+
+/** 商品平台行。 */
+@Composable
+private fun PlatformRow(platform: Platform, connected: Boolean, onClick: () -> Unit) {
+    VWListRow(
+        title = platform.label,
+        trailing = {
+            Text(
+                text = if (connected) "已连接" else "未连接",
+                style = VWTypeScale.body,
+                color = if (connected) SemanticSuccess else InkTertiary
+            )
+        },
+        showTrailingArrow = true,
+        onClick = onClick
+    )
+    RowDivider()
+}
+
+@Composable
+private fun RowDivider() {
+    HorizontalDivider(
+        modifier = Modifier.padding(start = VWSpacing.lg),
+        color = MaterialTheme.colorScheme.outlineVariant
+    )
+}
+
+/** 商品平台字段选择对话框：选择该平台要编辑的 AppKey / Secret。 */
+@Composable
+private fun PlatformFieldDialog(
+    platform: Platform,
+    onSelect: (SettingsField) -> Unit,
+    onDismiss: () -> Unit
 ) {
-    Surface(
-        modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surface,
-        shadowElevation = 2.dp
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (icon != null) {
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(iconTint.copy(alpha = 0.12f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = icon,
-                            contentDescription = null,
-                            tint = iconTint,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                    Spacer(Modifier.width(12.dp))
-                }
-                Column {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(platform.label) },
+        text = {
+            Column {
+                platform.fields.forEach { field ->
                     Text(
-                        text = title,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        text = field.label,
+                        style = VWTypeScale.body,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 12.dp)
+                            .androidx_compose_clickable { onSelect(field) }
                     )
-                    if (subtitle != null) {
-                        Text(
-                            text = subtitle,
-                            style = MaterialTheme.typography.labelMedium,
-                            color = subtitleTint
-                        )
-                    }
                 }
             }
-            Spacer(Modifier.height(12.dp))
-            content()
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("取消") }
         }
-    }
+    )
 }
 
-/**
- * 联盟分组内子分组：组标题 + 内容。
- */
+/** 深色模式三选对话框。 */
 @Composable
-private fun ProviderSubgroup(
-    title: String,
-    content: @Composable () -> Unit
+private fun ThemeModeDialog(
+    current: String,
+    onSelect: (String) -> Unit,
+    onDismiss: () -> Unit
 ) {
-    Column(modifier = Modifier.fillMaxWidth()) {
-        Text(
-            text = title,
-            style = MaterialTheme.typography.labelMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(vertical = 6.dp)
-        )
-        content()
-    }
-}
-
-/**
- * 凭证项行：标签 + 当前状态 + 箭头。
- */
-@Composable
-private fun CredentialRow(
-    label: String,
-    masked: String,
-    configured: Boolean,
-    onClick: () -> Unit
-) {
-    Surface(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
-        shape = RoundedCornerShape(10.dp)
-    ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = if (configured) Icons.Filled.VerifiedUser else Icons.Filled.Lock,
-                contentDescription = null,
-                tint = if (configured) SemanticSuccess else NeutralGray,
-                modifier = Modifier.size(18.dp)
-            )
-            Spacer(Modifier.width(10.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = label,
-                    style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = if (configured) "已配置：$masked" else "未配置，点击设置",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = if (configured) MaterialTheme.colorScheme.onSurfaceVariant else SemanticWarning
-                )
+    val options = listOf(
+        Triple("system", "跟随系统", "随系统外观自动切换"),
+        Triple("light", "浅色", "始终使用浅色主题"),
+        Triple("dark", "深色", "始终使用深色主题")
+    )
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("深色模式") },
+        text = {
+            Column {
+                options.forEach { (mode, label, desc) ->
+                    Text(
+                        text = "$label　${if (mode == current) "✓" else ""}",
+                        style = VWTypeScale.body,
+                        color = if (mode == current) PinePrimary else MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 12.dp)
+                            .androidx_compose_clickable { onSelect(mode) }
+                    )
+                }
             }
-            Icon(
-                imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp)
-            )
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("取消") }
         }
-    }
+    )
 }
 
-/**
- * 信息行：标签 + 值 + 可选尾部操作。
- */
-@Composable
-private fun InfoRow(
-    label: String,
-    value: String,
-    trailing: @Composable (() -> Unit)? = null
-) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.weight(1f)
-        )
-        Text(
-            text = value,
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurface,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis
-        )
-        if (trailing != null) {
-            Spacer(Modifier.width(4.dp))
-            trailing()
+// 局部点击扩展：避免工具栏占用，直接在行文本上绑定点击。
+private fun Modifier.androidx_compose_clickable(onClick: () -> Unit): Modifier =
+    this.then(androidx.compose.foundation.clickable(onClick = onClick))
+
+private fun themeModeLabel(mode: String): String = when (mode) {
+    "light" -> "浅色"
+    "dark" -> "深色"
+    else -> "跟随系统"
+}
+
+/** 商品平台枚举：对应字段与连接状态。 */
+private enum class Platform(val label: String) {
+    TAOBAO("淘宝联盟"),
+    JD("京东联盟"),
+    PDD("多多进宝");
+
+    val fields: List<SettingsField>
+        get() = when (this) {
+            TAOBAO -> listOf(SettingsField.TAOBAO_APPKEY, SettingsField.TAOBAO_SECRET)
+            JD -> listOf(SettingsField.JD_APPKEY, SettingsField.JD_SECRET)
+            PDD -> listOf(SettingsField.PDD_CLIENT_ID, SettingsField.PDD_CLIENT_SECRET)
         }
+
+    fun isConnected(state: SettingsUiState): Boolean = when (this) {
+        TAOBAO -> state.alliance.taobaoAppKey.isConfigured && state.alliance.taobaoSecret.isConfigured
+        JD -> state.alliance.jdAppKey.isConfigured && state.alliance.jdSecret.isConfigured
+        PDD -> state.alliance.pddClientId.isConfigured && state.alliance.pddClientSecret.isConfigured
     }
 }
 
@@ -462,16 +408,7 @@ private fun CredentialEditDialog(
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    imageVector = Icons.Filled.Key,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(Modifier.width(8.dp))
-                Text(text = field.label, fontWeight = FontWeight.SemiBold)
-            }
+            Text(text = field.label)
         },
         text = {
             OutlinedTextField(
@@ -479,7 +416,7 @@ private fun CredentialEditDialog(
                 onValueChange = { text = it },
                 singleLine = true,
                 visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Password),
                 label = { Text("输入 ${field.label}") }
             )
         },

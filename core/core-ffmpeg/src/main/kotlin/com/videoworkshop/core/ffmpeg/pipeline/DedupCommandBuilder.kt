@@ -19,15 +19,18 @@ import com.videoworkshop.domain.model.VideoClip
  *
  * 命令结构：
  * ```
- * ffmpeg -i "INPUT" \
- *   [-filter_complex "[0:v]VF[vout];AUDIO" | -vf "VF"] \
+ * ffmpeg -i INPUT \
+ *   [-filter_complex [0:v]VF[vout];AUDIO | -vf VF] \
  *   -map [vout|0:v] -map [aout|0:a?] \
  *   -c:v {h264_mediacodec|libx264} [-b:v BITRATE] -pix_fmt yuv420p \
  *   -c:a aac \
  *   [-map_metadata -1 -map_chapters -1] \
  *   [-fflags +bitexact] \
- *   -y "OUTPUT"
+ *   -y OUTPUT
  * ```
+ *
+ * 注意：FFmpegKit 按空格切分命令字符串且不解析 shell 引号，
+ * 因此路径与滤镜图均以裸字符串形式拼接，**不能包含任何双引号字符**。
  *
  * 视频滤镜按开关动态拼接：fps → crop → hflip → hue
  * 音频滤镜使用 equalizer + anoisesrc（需注入时长），通过 -filter_complex 实现。
@@ -57,7 +60,7 @@ object DedupCommandBuilder {
     ): String {
         val cmd = StringBuilder()
         cmd.append("ffmpeg")
-        cmd.append(" -i \"$inputPath\"")
+        cmd.append(" -i $inputPath")
 
         val videoFilters = buildVideoFilters(config)
         val useComplexFilter = config.audioReshape
@@ -96,7 +99,7 @@ object DedupCommandBuilder {
 
         // 覆盖输出
         cmd.append(" -y")
-        cmd.append(" \"$outputPath\"")
+        cmd.append(" $outputPath")
 
         return cmd.toString()
     }
@@ -145,7 +148,7 @@ object DedupCommandBuilder {
         val durationSec = videoInfo.duration / 1000.0
         filterParts.add(AudioReshaper.buildFilter(config.strength, durationSec))
 
-        cmd.append(" -filter_complex \"${filterParts.joinToString(";")}\"")
+        cmd.append(" -filter_complex ${filterParts.joinToString(";")}")
 
         // 映射输出流
         if (videoFilters.isNotEmpty()) {
@@ -161,7 +164,7 @@ object DedupCommandBuilder {
      */
     private fun appendSimpleFilter(cmd: StringBuilder, videoFilters: String) {
         if (videoFilters.isNotEmpty()) {
-            cmd.append(" -vf \"$videoFilters\"")
+            cmd.append(" -vf $videoFilters")
         }
         cmd.append(" -map 0:v -map 0:a?")
     }

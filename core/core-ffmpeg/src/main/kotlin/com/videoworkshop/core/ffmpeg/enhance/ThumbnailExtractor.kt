@@ -27,12 +27,12 @@ object ThumbnailExtractor {
             append("ffmpeg")
             // -ss 前置 -i：快速 seek 到目标时间附近的关键帧
             append(" -ss $timestamp")
-            append(" -i \"$videoPath\"")
+            append(" -i $videoPath")
             // 仅输出 1 帧
             append(" -frames:v 1")
             // JPEG 质量（2 = 高质量，范围 2-31，越小越好）
             append(" -q:v 2")
-            append(" -y \"$outputPath\"")
+            append(" -y $outputPath")
         }
     }
 }

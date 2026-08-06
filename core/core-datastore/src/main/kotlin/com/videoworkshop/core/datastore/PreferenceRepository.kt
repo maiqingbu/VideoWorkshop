@@ -35,6 +35,10 @@ class PreferenceRepository(private val dataStore: DataStore<Preferences>) {
     val pddClientId: Flow<String> = observe(AppPreferences.PDD_CLIENT_ID)
     val pddClientSecret: Flow<String> = observe(AppPreferences.PDD_CLIENT_SECRET)
 
+    // ===== 读取：外观偏好 =====
+    /** 主题模式：system（跟随系统）/ light（浅色）/ dark（深色）。 */
+    val themeMode: Flow<String> = observe(AppPreferences.THEME_MODE)
+
     // ===== 写入：AI 模型 Keys =====
     suspend fun setDeepseekKey(value: String) = write(AppPreferences.DEEPSEEK_KEY, value)
     suspend fun setAzureKey(value: String) = write(AppPreferences.AZURE_KEY, value)
@@ -47,6 +51,9 @@ class PreferenceRepository(private val dataStore: DataStore<Preferences>) {
     suspend fun setJdSecret(value: String) = write(AppPreferences.JD_SECRET, value)
     suspend fun setPddClientId(value: String) = write(AppPreferences.PDD_CLIENT_ID, value)
     suspend fun setPddClientSecret(value: String) = write(AppPreferences.PDD_CLIENT_SECRET, value)
+
+    // ===== 写入：外观偏好 =====
+    suspend fun setThemeMode(value: String) = write(AppPreferences.THEME_MODE, value)
 
     /**
      * 清空全部配置（用于退出登录/重置场景）。

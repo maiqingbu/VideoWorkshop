@@ -1224,6 +1224,7 @@ private fun SectionTitle(text: String) {
  * @param videoPath 视频本地路径
  * @param onDismiss 关闭回调
  */
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 @Composable
 private fun ABTransportVideoPreviewDialog(
     videoPath: String,

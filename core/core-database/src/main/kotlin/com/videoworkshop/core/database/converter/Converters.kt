@@ -32,6 +32,27 @@ class Converters {
         }
     }
 
+    // ===== Set<String> =====
+
+    @TypeConverter
+    fun stringSetToJson(value: Set<String>?): String? {
+        if (value == null) return null
+        val array = JSONArray()
+        value.forEach { array.put(it) }
+        return array.toString()
+    }
+
+    @TypeConverter
+    fun jsonToStringSet(value: String?): Set<String> {
+        if (value.isNullOrEmpty()) return emptySet()
+        val array = JSONArray(value)
+        return buildSet {
+            for (i in 0 until array.length()) {
+                add(array.getString(i))
+            }
+        }
+    }
+
     // ===== Map<String, String> =====
 
     @TypeConverter

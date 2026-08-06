@@ -62,7 +62,9 @@ class DedupCommandBuilderTest {
         val cmd = DedupCommandBuilder.build(inputPath, outputPath, videoClip, config)
 
         // 应使用 -vf 简单滤镜，而非 -filter_complex
-        assertTrue("应使用 -vf", cmd.contains("-vf \""))
+        // 注意：FFmpegKit 不解析 shell 引号，命令字符串中不应包含双引号字符
+        assertTrue("应使用 -vf", cmd.contains("-vf "))
+        assertFalse("命令不应包含双引号字符（FFmpegKit 不解析引号）", cmd.contains("\""))
         assertFalse("audioReshape 关闭时不应使用 -filter_complex", cmd.contains("-filter_complex"))
 
         // 应使用简单映射 0:v / 0:a?
@@ -160,7 +162,7 @@ class DedupCommandBuilderTest {
         assertFalse("MD5 修改关闭时不应出现 -fflags", cmd.contains("-fflags"))
     }
 
-    // ===== 用例 9：命令应以 "ffmpeg -i" 开头，并以 -y "outputPath" 结尾 =====
+    // ===== 用例 9：命令应以 "ffmpeg -i" 开头，并以 -y outputPath 结尾（无引号） =====
     @Test
     fun build_startsAndEndsWithExpectedTokens() {
         val config = DedupConfig()
@@ -168,10 +170,12 @@ class DedupCommandBuilderTest {
         val cmd = DedupCommandBuilder.build(inputPath, outputPath, videoClip, config)
 
         assertTrue("命令应以 ffmpeg -i 开头", cmd.startsWith("ffmpeg -i "))
+        // FFmpegKit 按空格切分命令字符串且不解析 shell 引号，因此路径以裸字符串形式拼接
         assertTrue(
-            "命令应以 -y \"outputPath\" 结尾",
-            cmd.endsWith("-y \"$outputPath\"")
+            "命令应以 -y $outputPath 结尾（不含引号）",
+            cmd.endsWith("-y $outputPath")
         )
+        assertFalse("命令不应包含任何双引号字符", cmd.contains("\""))
     }
 
     // ===== 用例 10：JVM 环境下编码器应为 libx264 =====

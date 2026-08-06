@@ -40,6 +40,7 @@ include(":data:data-alliance")
 include(":data:data-ai")
 include(":data:data-repository")
 include(":data:data-publish")
+include(":data:data-project")
 
 // Feature
 include(":feature:feature-home")
@@ -52,3 +53,4 @@ include(":feature:feature-publish")
 include(":feature:feature-abtransport")
 include(":feature:feature-history")
 include(":feature:feature-settings")
+include(":feature:feature-project")

@@ -32,6 +32,11 @@ android {
     }
 }
 
+ksp {
+    // 启用 Room Schema 导出，供迁移测试与版本比对使用
+    arg("room.schemaLocation", "$projectDir/schemas")
+}
+
 dependencies {
     implementation(project(":core:core-common"))
     implementation(libs.androidx.core.ktx)
@@ -50,4 +55,5 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.androidx.room.testing)
+    testImplementation(libs.sqlite.jdbc)
 }

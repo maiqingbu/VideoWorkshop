@@ -31,16 +31,16 @@ object AudioMixer {
     ): String {
         val cmd = StringBuilder()
         cmd.append("ffmpeg")
-        cmd.append(" -i \"$videoPath\"")
-        cmd.append(" -i \"$voicePath\"")
+        cmd.append(" -i $videoPath")
+        cmd.append(" -i $voicePath")
 
         if (bgmPath != null) {
-            cmd.append(" -i \"$bgmPath\"")
+            cmd.append(" -i $bgmPath")
             // 三路混音：原声 + 配音 + BGM
-            cmd.append(" -filter_complex \"[0:a][1:a][2:a]amix=inputs=3:duration=longest:dropout=0$LABEL_AOUT\"")
+            cmd.append(" -filter_complex [0:a][1:a][2:a]amix=inputs=3:duration=longest:dropout=0$LABEL_AOUT")
         } else {
             // 两路混音：原声 + 配音
-            cmd.append(" -filter_complex \"[0:a][1:a]amix=inputs=2:duration=longest:dropout=0$LABEL_AOUT\"")
+            cmd.append(" -filter_complex [0:a][1:a]amix=inputs=2:duration=longest:dropout=0$LABEL_AOUT")
         }
 
         // 映射：视频直接复制，音频取混合结果
@@ -48,7 +48,7 @@ object AudioMixer {
         cmd.append(" -map $LABEL_AOUT")
         cmd.append(" -c:v copy")
         cmd.append(" -c:a aac")
-        cmd.append(" -y \"$outputPath\"")
+        cmd.append(" -y $outputPath")
 
         return cmd.toString()
     }

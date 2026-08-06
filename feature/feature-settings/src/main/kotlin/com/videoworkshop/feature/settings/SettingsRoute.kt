@@ -25,6 +25,7 @@ fun SettingsRoute(
         onSaveEdit = viewModel::saveEdit,
         onCancelEdit = viewModel::cancelEdit,
         onClearCache = viewModel::clearCache,
+        onThemeModeChange = viewModel::setThemeMode,
         onConsumeToast = viewModel::consumeToast
     )
 }

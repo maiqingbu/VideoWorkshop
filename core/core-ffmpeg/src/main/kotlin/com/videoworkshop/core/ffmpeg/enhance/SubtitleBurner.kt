@@ -34,12 +34,12 @@ object SubtitleBurner {
 
         return buildString {
             append("ffmpeg")
-            append(" -i \"$videoPath\"")
-            append(" -vf \"subtitles=$escapedPath:force_style='$style'\"")
+            append(" -i $videoPath")
+            append(" -vf subtitles=$escapedPath:force_style='$style'")
             append(" -c:v $encoder")
             append(" -pix_fmt yuv420p")
             append(" -c:a copy")
-            append(" -y \"$outputPath\"")
+            append(" -y $outputPath")
         }
     }
 }

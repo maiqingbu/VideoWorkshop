@@ -40,14 +40,13 @@ object StickerOverlayer {
 
         return buildString {
             append("ffmpeg")
-            append(" -i \"$videoPath\"")
-            append(" -i \"$stickerPath\"")
+            append(" -i $videoPath")
+            append(" -i $stickerPath")
 
             // overlay 滤镜：将贴纸叠加到视频上，仅在指定时间段显示
-            append(" -filter_complex \"")
+            append(" -filter_complex ")
             append("[0:v][1:v]overlay=$x:$y:enable='between(t,$startTime,$endTime)'")
             append(LABEL_VOUT)
-            append("\"")
 
             // 映射输出
             append(" -map $LABEL_VOUT")
@@ -57,7 +56,7 @@ object StickerOverlayer {
             append(" -c:v $encoder")
             append(" -pix_fmt yuv420p")
             append(" -c:a aac")
-            append(" -y \"$outputPath\"")
+            append(" -y $outputPath")
         }
     }
 }

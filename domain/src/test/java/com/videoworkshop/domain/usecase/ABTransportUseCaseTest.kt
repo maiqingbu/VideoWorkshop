@@ -318,6 +318,12 @@ class ABTransportUseCaseTest {
         override suspend fun getVideoInfo(path: String): VideoClip =
             throw UnsupportedOperationException("FakeDedupRepository 不支持 getVideoInfo")
 
+        override suspend fun hasAudioTrack(path: String): Boolean =
+            throw UnsupportedOperationException("FakeDedupRepository 不支持 hasAudioTrack")
+
+        override suspend fun extractKeyframes(videoPath: String, count: Int, outputDir: String): List<String> =
+            throw UnsupportedOperationException("FakeDedupRepository 不支持 extractKeyframes")
+
         override suspend fun enhanceVideo(
             inputPath: String,
             outputPath: String,

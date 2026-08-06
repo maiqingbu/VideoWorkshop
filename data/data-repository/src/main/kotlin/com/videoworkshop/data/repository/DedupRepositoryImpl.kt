@@ -348,10 +348,12 @@ class DedupRepositoryImpl @Inject constructor(
 
     /**
      * 使用 FFmpeg 创建静音音频文件，用作 AudioMixer 的 voicePath 占位。
+     *
+     * 注意：FFmpegKit 不解析 shell 引号，路径以裸字符串形式传递。
      */
     private fun createSilentAudio(path: String, durationSec: Double) {
         val command = "ffmpeg -f lavfi -i anullsrc=r=44100:cl=mono " +
-            "-t $durationSec -q:a 9 -acodec aac -y \"$path\""
+            "-t $durationSec -q:a 9 -acodec aac -y $path"
         FfmpegEngine.execute(command)
     }
 

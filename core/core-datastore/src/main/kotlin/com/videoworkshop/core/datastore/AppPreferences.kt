@@ -38,6 +38,10 @@ object AppPreferences {
     val PDD_CLIENT_ID = stringPreferencesKey("pdd_client_id")
     val PDD_CLIENT_SECRET = stringPreferencesKey("pdd_client_secret")
 
+    // ===== 外观偏好 =====
+    /** 主题模式：system（跟随系统）/ light（浅色）/ dark（深色）。 */
+    val THEME_MODE = stringPreferencesKey("theme_mode")
+
     /**
      * 获取应用级 [DataStore] 实例。建议传入 [Context.getApplicationContext]。
      */

@@ -7,82 +7,81 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AudioFile
 import androidx.compose.material.icons.filled.Collections
-import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.ContentCut
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material.icons.filled.SwapHoriz
-import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.SyncAlt
+import androidx.compose.material.icons.filled.Upcoming
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.videoworkshop.core.designsystem.theme.BrandNavy
-import com.videoworkshop.core.designsystem.theme.BrandRed
-import com.videoworkshop.core.designsystem.theme.BrandRedDark
-import com.videoworkshop.core.designsystem.theme.NeutralGray
-import com.videoworkshop.core.designsystem.theme.NeutralGrayLight
-import com.videoworkshop.core.designsystem.theme.SemanticInfo
-import com.videoworkshop.domain.model.Draft
-import android.widget.Toast
+import com.videoworkshop.core.designsystem.theme.InkSecondary
+import com.videoworkshop.core.designsystem.theme.InkTertiary
+import com.videoworkshop.core.designsystem.theme.PinePrimary
+import com.videoworkshop.core.designsystem.theme.VWRadius
+import com.videoworkshop.core.designsystem.theme.VWSpacing
+import com.videoworkshop.core.designsystem.theme.VWTypeScale
+import com.videoworkshop.core.ui.components.VWPrimaryButton
+import com.videoworkshop.core.ui.components.VWProjectRow
+import com.videoworkshop.domain.model.Project
+import com.videoworkshop.domain.model.ProjectStatus
+import com.videoworkshop.domain.model.ProjectType
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 /**
  * 快捷功能入口类型。
  */
-enum class QuickAction { MATERIAL, PUBLISH_RECORDS }
+enum class QuickAction { MATERIAL, PROJECTS }
 
 /**
- * 首页 —— 视频工坊创作中心。
+ * 常用工具入口。
+ */
+enum class WorkbenchTool(val label: String, val icon: ImageVector) {
+    AB_RECOMPOSE("音画重组", Icons.Filled.SwapHoriz),
+    MATERIAL_PROCESS("素材处理", Icons.Filled.SyncAlt),
+    IMAGE_MAKE("图文制作", Icons.Filled.Image),
+    GOODS_LIBRARY("商品库", Icons.Filled.Collections)
+}
+
+/**
+ * 工作台 —— 视频工坊创作中心。
  *
- * 顶部为品牌红渐变标题区，下方为「视频带货 / 图文带货 / AB 搬运 / 二创工厂」
- * 四张主入口卡片（二创工厂为灰态「敬请期待」），以及最近草稿横向列表与
- * 「素材库 / 发布记录」两个快捷入口。整体使用 [LazyColumn] 并支持下拉刷新。
+ * 顶部仅保留应用名与任务入口，删除品牌渐变头图、Logo 方块、装饰圆与假统计。
+ * 「新建项目」是本页唯一大主按钮；最近项目改为纵向列表；常用工具使用白底小面板。
  */
 @Composable
 fun HomeScreen(
     uiState: HomeUiState,
-    onVideoMode: () -> Unit,
-    onImageMode: () -> Unit,
-    onABTransport: () -> Unit,
     onRefresh: () -> Unit,
     onQuickAction: (QuickAction) -> Unit,
+    onCreateProject: () -> Unit,
+    onProjectClick: (String) -> Unit,
+    onToolSelected: (WorkbenchTool) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val context = LocalContext.current
-
     PullToRefreshBox(
         isRefreshing = uiState.isLoading,
         onRefresh = onRefresh,
@@ -91,288 +90,178 @@ fun HomeScreen(
             .background(MaterialTheme.colorScheme.background)
     ) {
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally
+            modifier = Modifier.fillMaxSize()
         ) {
-            item { HomeHeader(draftCount = uiState.recentDrafts.size) }
+            item { WorkbenchHeader() }
 
-            // 4 主入口卡片：2x2 网格
+            // 新建项目：本页唯一大主按钮
             item {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    ModeCard(
-                        modifier = Modifier.weight(1f),
-                        gradient = Brush.linearGradient(listOf(BrandRed, BrandRedDark)),
-                        icon = Icons.Filled.Movie,
-                        title = "视频带货",
-                        description = "去重 + 配音 + 发布",
-                        onClick = onVideoMode
-                    )
-                    ModeCard(
-                        modifier = Modifier.weight(1f),
-                        gradient = Brush.linearGradient(listOf(SemanticInfo, BrandNavy)),
-                        icon = Icons.Filled.Image,
-                        title = "图文带货",
-                        description = "模板 + 文案 + 发布",
-                        onClick = onImageMode
-                    )
-                }
+                VWPrimaryButton(
+                    text = "新建项目",
+                    onClick = onCreateProject,
+                    modifier = Modifier.padding(horizontal = VWSpacing.lg, vertical = VWSpacing.md),
+                    leadingIcon = Icons.Filled.Add
+                )
             }
 
+            // 最近项目
             item {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    ModeCard(
-                        modifier = Modifier.weight(1f),
-                        gradient = Brush.linearGradient(listOf(BrandRed, BrandRedDark)),
-                        icon = Icons.Filled.SwapHoriz,
-                        title = "AB 搬运",
-                        description = "音轨替换 / 混合 / 对齐",
-                        onClick = onABTransport
-                    )
-                    ModeCard(
-                        modifier = Modifier.weight(1f),
-                        gradient = Brush.linearGradient(listOf(NeutralGrayLight, NeutralGray)),
-                        icon = Icons.Filled.AutoAwesome,
-                        title = "二创工厂",
-                        description = "敬请期待",
-                        titleColor = Color.White,
-                        descriptionColor = Color.White.copy(alpha = 0.85f),
-                        onClick = {
-                            Toast.makeText(context, "敬请期待", Toast.LENGTH_SHORT).show()
+                SectionHeader(
+                    title = "最近项目",
+                    trailing = if (uiState.recentProjects.isNotEmpty()) {
+                        {
+                            Text(
+                                text = "全部",
+                                style = VWTypeScale.caption,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.clickable { onQuickAction(QuickAction.PROJECTS) }
+                            )
                         }
+                    } else null
+                )
+            }
+
+            if (uiState.recentProjects.isEmpty()) {
+                item {
+                    EmptyProjectCard(onCreate = onCreateProject)
+                }
+            } else {
+                items(uiState.recentProjects, key = { it.id }) { project ->
+                    VWProjectRow(
+                        title = project.title.ifBlank { "未命名项目" },
+                        typeLabel = project.type.typeLabel(),
+                        status = project.status.statusLabel(),
+                        timeLabel = project.updatedAt.toRelativeLabel(),
+                        onClick = { onProjectClick(project.id) },
+                        thumbnailIcon = project.type.typeIcon()
+                    )
+                    HorizontalDivider(
+                        modifier = Modifier.padding(start = VWSpacing.lg),
+                        color = MaterialTheme.colorScheme.outlineVariant
                     )
                 }
             }
 
-            item { SectionHeader(title = "最近草稿") }
-
+            // 常用工具
             item {
-                if (uiState.recentDrafts.isEmpty()) {
-                    EmptyDraftCard()
-                } else {
-                    LazyRow(
-                        modifier = Modifier.fillMaxWidth(),
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        items(uiState.recentDrafts, key = { it.id }) { draft ->
-                            DraftCard(draft = draft)
-                        }
-                    }
-                }
+                Spacer(Modifier.height(24.dp))
+                SectionHeader(title = "常用工具")
             }
 
             item {
-                Spacer(Modifier.height(20.dp))
-                SectionHeader(title = "快捷功能")
-            }
-
-            item {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    QuickItem(
-                        modifier = Modifier.weight(1f),
-                        icon = Icons.Filled.Collections,
-                        label = "素材库",
-                        onClick = { onQuickAction(QuickAction.MATERIAL) }
-                    )
-                    QuickItem(
-                        modifier = Modifier.weight(1f),
-                        icon = Icons.Filled.History,
-                        label = "发布记录",
-                        onClick = { onQuickAction(QuickAction.PUBLISH_RECORDS) }
-                    )
-                }
+                ToolGrid(onTool = onToolSelected)
             }
 
             item {
                 Spacer(Modifier.height(32.dp))
-                Spacer(Modifier.navigationBarsPadding())
             }
         }
     }
 }
 
 /**
- * 顶部品牌渐变标题区。
+ * 顶部：应用名 + 任务入口，删除品牌渐变头图。
  */
 @Composable
-private fun HomeHeader(draftCount: Int) {
-    Box(
+private fun WorkbenchHeader() {
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(Brush.verticalGradient(listOf(BrandRed, BrandRedDark)))
+            .padding(horizontal = VWSpacing.lg, vertical = VWSpacing.md),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        // 装饰：右上角半透明圆，增加层次感
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(top = 8.dp)
-                .size(140.dp)
-                .clip(CircleShape)
-                .background(Color.White.copy(alpha = 0.08f))
+        Text(
+            text = "视频工坊",
+            style = VWTypeScale.pageTitle,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f)
         )
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(top = 70.dp, end = 40.dp)
-                .size(70.dp)
-                .clip(CircleShape)
-                .background(Color.White.copy(alpha = 0.06f))
+        // 任务入口（占位，后续接入真实任务）
+        Icon(
+            imageVector = Icons.Filled.Upcoming,
+            contentDescription = "任务（暂无进行中任务）",
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(24.dp)
         )
-
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .windowInsetsPadding(WindowInsets.statusBars)
-                .padding(horizontal = 20.dp, vertical = 18.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(Color.White.copy(alpha = 0.22f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.Movie,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(26.dp)
-                    )
-                }
-                Spacer(Modifier.width(12.dp))
-                Column {
-                    Text(
-                        text = "视频工坊",
-                        color = Color.White,
-                        fontSize = 26.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = "一站式带货创作工具",
-                        color = Color.White.copy(alpha = 0.9f),
-                        fontSize = 13.sp
-                    )
-                }
-            }
-
-            Spacer(Modifier.height(18.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                StatItem(value = draftCount.toString(), label = "草稿")
-                StatItem(value = "0", label = "已发布")
-                StatItem(value = "0", label = "收藏商品")
-            }
-        }
     }
 }
 
 @Composable
-private fun StatItem(value: String, label: String) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(
-            text = value,
-            color = Color.White,
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Bold
-        )
-        Spacer(Modifier.height(2.dp))
-        Text(
-            text = label,
-            color = Color.White.copy(alpha = 0.85f),
-            fontSize = 12.sp
-        )
-    }
-}
-
-/**
- * 创作模式大卡片：渐变背景 + 图标 + 标题 + 描述 + 「开始制作」引导。
- */
-@Composable
-private fun ModeCard(
-    modifier: Modifier = Modifier,
-    gradient: Brush,
-    icon: ImageVector,
+private fun SectionHeader(
     title: String,
-    description: String,
-    onClick: () -> Unit,
-    titleColor: Color = Color.White,
-    descriptionColor: Color = Color.White.copy(alpha = 0.88f)
+    trailing: (@Composable () -> Unit)? = null
 ) {
-    Box(
-        modifier = modifier
-            .height(168.dp)
-            .shadow(elevation = 10.dp, shape = RoundedCornerShape(20.dp))
-            .clip(RoundedCornerShape(20.dp))
-            .background(gradient)
-            .clickable(onClick = onClick)
-            .padding(16.dp)
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = VWSpacing.lg, vertical = VWSpacing.md),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(
-            modifier = Modifier.fillMaxHeight(),
-            verticalArrangement = Arrangement.SpaceBetween
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.22f)),
-                contentAlignment = Alignment.Center
+        Text(
+            text = title,
+            style = VWTypeScale.sectionTitle,
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.weight(1f)
+        )
+        if (trailing != null) {
+            trailing()
+        }
+    }
+}
+
+/**
+ * 项目为空时的占位卡片。
+ */
+@Composable
+private fun EmptyProjectCard(onCreate: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = VWSpacing.lg)
+            .clip(VWRadius.card)
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .clickable(onClick = onCreate)
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Icon(
+            imageVector = Icons.Filled.Add,
+            contentDescription = null,
+            tint = InkTertiary,
+            modifier = Modifier.size(40.dp)
+        )
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = "还没有项目，点击新建项目开始创作",
+            style = VWTypeScale.caption,
+            color = InkSecondary
+        )
+    }
+}
+
+/**
+ * 常用工具：白底小面板，不使用彩色渐变。
+ */
+@Composable
+private fun ToolGrid(onTool: (WorkbenchTool) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = VWSpacing.lg),
+        horizontalArrangement = Arrangement.spacedBy(VWSpacing.md)
+    ) {
+        listOf(
+            WorkbenchTool.AB_RECOMPOSE,
+            WorkbenchTool.MATERIAL_PROCESS,
+            WorkbenchTool.IMAGE_MAKE,
+            WorkbenchTool.GOODS_LIBRARY
+        ).chunked(2).forEach { rowTools ->
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(VWSpacing.md)
             ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = Color.White,
-                    modifier = Modifier.size(28.dp)
-                )
-            }
-            Column {
-                Text(
-                    text = title,
-                    color = titleColor,
-                    fontSize = 19.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = description,
-                    color = descriptionColor,
-                    fontSize = 12.sp,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Spacer(Modifier.height(10.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "开始制作",
-                        color = titleColor.copy(alpha = 0.95f),
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                        contentDescription = null,
-                        tint = titleColor.copy(alpha = 0.95f),
-                        modifier = Modifier.size(16.dp)
-                    )
+                rowTools.forEach { tool ->
+                    ToolItem(tool = tool, onClick = { onTool(tool) })
                 }
             }
         }
@@ -380,147 +269,64 @@ private fun ModeCard(
 }
 
 @Composable
-private fun SectionHeader(title: String) {
-    Text(
-        text = title,
-        modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 10.dp),
-        color = MaterialTheme.colorScheme.onBackground,
-        fontSize = 17.sp,
-        fontWeight = FontWeight.Bold
-    )
-}
-
-/**
- * 草稿为空时的占位卡片。
- */
-@Composable
-private fun EmptyDraftCard() {
-    Surface(
+private fun ToolItem(tool: WorkbenchTool, onClick: () -> Unit) {
+    Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .height(92.dp),
-        shape = RoundedCornerShape(14.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            .clip(VWRadius.card)
+            .background(MaterialTheme.colorScheme.surface)
+            .clickable(onClick = onClick)
+            .padding(VWSpacing.lg),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(
-            modifier = Modifier.fillMaxSize(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.Center
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(VWRadius.thumbnail)
+                .background(PinePrimary.copy(alpha = 0.1f)),
+            contentAlignment = Alignment.Center
         ) {
             Icon(
-                imageVector = Icons.Filled.Add,
+                imageVector = tool.icon,
                 contentDescription = null,
-                tint = NeutralGray,
-                modifier = Modifier.size(20.dp)
-            )
-            Spacer(Modifier.width(8.dp))
-            Text(
-                text = "暂无草稿，快去创作吧",
-                color = NeutralGray,
-                fontSize = 14.sp
+                tint = PinePrimary,
+                modifier = Modifier.size(22.dp)
             )
         }
+        Spacer(Modifier.width(VWSpacing.md))
+        Text(
+            text = tool.label,
+            style = VWTypeScale.listTitle,
+            color = MaterialTheme.colorScheme.onSurface
+        )
     }
 }
 
-/**
- * 单条草稿横向卡片（草稿列表非空时展示）。
- */
-@Composable
-private fun DraftCard(draft: Draft) {
-    Surface(
-        modifier = Modifier
-            .width(220.dp)
-            .height(110.dp),
-        shape = RoundedCornerShape(14.dp),
-        color = MaterialTheme.colorScheme.surface,
-        shadowElevation = 2.dp
-    ) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(
-                    modifier = Modifier
-                        .size(30.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(BrandRed.copy(alpha = 0.12f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = if (draft.type == com.videoworkshop.domain.model.ContentType.VIDEO) {
-                            Icons.Filled.Movie
-                        } else {
-                            Icons.Filled.Image
-                        },
-                        contentDescription = null,
-                        tint = BrandRed,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-                Spacer(Modifier.width(8.dp))
-                Text(
-                    text = if (draft.type == com.videoworkshop.domain.model.ContentType.VIDEO) "视频草稿" else "图文草稿",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-            }
-            Spacer(Modifier.height(8.dp))
-            Text(
-                text = draft.content.ifBlank { "未填写文案" },
-                fontSize = 13.sp,
-                color = MaterialTheme.colorScheme.onSurface,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-    }
+private fun ProjectType.typeIcon(): ImageVector = when (this) {
+    ProjectType.VIDEO_COMMERCE -> Icons.Filled.Movie
+    ProjectType.IMAGE_COMMERCE -> Icons.Filled.Image
+    ProjectType.AB_RECOMPOSE -> Icons.Filled.SwapHoriz
+    ProjectType.VIDEO_REWORK -> Icons.Filled.ContentCut
+    ProjectType.LONG_VIDEO_CLIP -> Icons.Filled.AudioFile
 }
 
-/**
- * 快捷功能网格项。
- */
-@Composable
-private fun QuickItem(
-    modifier: Modifier = Modifier,
-    icon: ImageVector,
-    label: String,
-    onClick: () -> Unit
-) {
-    Surface(
-        modifier = modifier
-            .height(96.dp),
-        shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surface,
-        shadowElevation = 2.dp,
-        onClick = onClick
-    ) {
-        Column(
-            modifier = Modifier.fillMaxSize().padding(8.dp),
-            verticalArrangement = Arrangement.Center,
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(BrandRed.copy(alpha = 0.12f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = BrandRed,
-                    modifier = Modifier.size(22.dp)
-                )
-            }
-            Spacer(Modifier.height(8.dp))
-            Text(
-                text = label,
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-        }
-    }
+private fun ProjectType.typeLabel(): String = when (this) {
+    ProjectType.VIDEO_COMMERCE -> "视频项目"
+    ProjectType.IMAGE_COMMERCE -> "图文项目"
+    ProjectType.AB_RECOMPOSE -> "音画项目"
+    ProjectType.VIDEO_REWORK -> "二创项目"
+    ProjectType.LONG_VIDEO_CLIP -> "切片项目"
 }
+
+internal fun ProjectStatus.statusLabel(): String = when (this) {
+    ProjectStatus.DRAFT -> "草稿"
+    ProjectStatus.PREPARING -> "素材准备中"
+    ProjectStatus.PROCESSING -> "处理中"
+    ProjectStatus.READY_TO_PUBLISH -> "待发布"
+    ProjectStatus.PUBLISHED -> "已发布"
+    ProjectStatus.FAILED -> "失败"
+    ProjectStatus.ARCHIVED -> "已归档"
+}
+
+private fun Long.toRelativeLabel(): String =
+    SimpleDateFormat("MM-dd HH:mm", Locale.getDefault()).format(Date(this))

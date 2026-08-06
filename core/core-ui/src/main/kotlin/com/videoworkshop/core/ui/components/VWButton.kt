@@ -115,8 +115,9 @@ fun OutlineButton(
 /**
  * 渐变按钮：品牌红 -> 品牌红高亮 的水平渐变背景，白色文字。
  *
- * 用于核心转化入口（如"开始生成""立即发布"），强调电商活力。
+ * @deprecated 素简工坊设计系统已废弃渐变按钮，请使用 [VWPrimaryButton]。
  */
+@Deprecated("渐变按钮已废弃，新代码请使用 VWPrimaryButton。", level = DeprecationLevel.WARNING)
 @Composable
 fun GradientButton(
     text: String,

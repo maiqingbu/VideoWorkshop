@@ -27,6 +27,7 @@ import com.videoworkshop.feature.history.historyNavGraph
 import com.videoworkshop.feature.home.homeNavGraph
 import com.videoworkshop.feature.imageeditor.imageEditorNavGraph
 import com.videoworkshop.feature.material.materialNavGraph
+import com.videoworkshop.feature.project.projectNavGraph
 import com.videoworkshop.feature.publish.publishNavGraph
 import com.videoworkshop.feature.settings.settingsNavGraph
 import com.videoworkshop.feature.videoenhance.EnhanceRoute
@@ -38,9 +39,9 @@ import com.videoworkshop.feature.videoenhance.videoEnhanceNavGraph
  * 路由参数遵循 [Uri.encode] 编码规则，避免 `/` `?` `=` 等字符破坏路由解析。
  */
 object Routes {
-    const val HOME = "home"
+    const val WORKBENCH = "workbench"
+    const val PROJECT = "project"
     const val MATERIAL = "material"
-    const val HISTORY = "history"
     const val SETTINGS = "settings"
     const val GOODS_LIBRARY = "goods-library"
 
@@ -65,9 +66,9 @@ object Routes {
  * 顶层 Tab 路由集合：仅这 4 个路由会展示 [VWBottomBar]。
  */
 private val TopLevelRoutes: Set<String> = setOf(
-    Routes.HOME,
+    Routes.WORKBENCH,
+    Routes.PROJECT,
     Routes.MATERIAL,
-    Routes.HISTORY,
     Routes.SETTINGS
 )
 
@@ -93,7 +94,7 @@ fun AppNavHost() {
         bottomBar = {
             if (showBottomBar) {
                 VWBottomBar(
-                    currentRoute = normalizedRoute ?: Routes.HOME,
+                    currentRoute = normalizedRoute ?: Routes.WORKBENCH,
                     onTabSelected = { tab -> navigateToTopLevel(navController, tab) },
                     tabs = VideoWorkshopBottomTabs
                 )
@@ -102,7 +103,7 @@ fun AppNavHost() {
     ) { innerPadding ->
         NavHost(
             navController = navController,
-            startDestination = Routes.HOME,
+            startDestination = Routes.WORKBENCH,
             modifier = Modifier.padding(innerPadding),
             enterTransition = { slideInHorizontally(tween(300)) { it } + fadeIn(tween(300)) },
             exitTransition = { slideOutHorizontally(tween(300)) { -it / 4 } + fadeOut(tween(300)) },
@@ -138,6 +139,7 @@ fun AppNavHost() {
                 }
             )
             settingsNavGraph(navController)
+            projectNavGraph(navController)
         }
     }
 }

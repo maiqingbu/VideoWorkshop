@@ -2,9 +2,9 @@ package com.videoworkshop.core.ui.components
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Collections
-import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -23,19 +23,19 @@ data class BottomTab(
 )
 
 /**
- * VideoWorkshop 默认 4 个底部 Tab：首页 / 素材库 / 发布记录 / 我的。
+ * VideoWorkshop 素简工坊 4 个底部 Tab：工作台 / 项目 / 素材 / 设置。
  *
  * 对应路由：
- * - home         首页
- * - material     素材库
- * - history      发布记录
- * - settings      我的
+ * - workbench   工作台
+ * - project     项目
+ * - material    素材
+ * - settings    设置
  */
 val VideoWorkshopBottomTabs: List<BottomTab> = listOf(
-    BottomTab(route = "home", label = "首页", icon = Icons.Filled.Home),
-    BottomTab(route = "material", label = "素材库", icon = Icons.Filled.Collections),
-    BottomTab(route = "history", label = "发布记录", icon = Icons.Filled.History),
-    BottomTab(route = "settings", label = "我的", icon = Icons.Filled.Person),
+    BottomTab(route = "workbench", label = "工作台", icon = Icons.Filled.Home),
+    BottomTab(route = "project", label = "项目", icon = Icons.Filled.PlayArrow),
+    BottomTab(route = "material", label = "素材", icon = Icons.Filled.Collections),
+    BottomTab(route = "settings", label = "设置", icon = Icons.Filled.Settings),
 )
 
 /**
